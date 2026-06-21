@@ -1,6 +1,6 @@
 {
   "name": "st-comfyui-webui-helper",
-  "version": "5.3.0",
+  "version": "5.4.0",
   "private": true,
   "type": "module",
   "description": "Private SillyTavern extension for ComfyUI/WebUI image generation.",

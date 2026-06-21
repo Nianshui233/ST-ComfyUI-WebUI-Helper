@@ -37,6 +37,7 @@ export function getPanelInputs() {
         negativePrompt: document.getElementById('comfyui-negative-prompt'),
         enableComparison: document.getElementById('comfyui-enable-comparison'),
         hideButtons: document.getElementById('comfyui-hide-buttons'),
+        directConnection: document.getElementById('comfyui-direct-connection'),
     };
 }
 

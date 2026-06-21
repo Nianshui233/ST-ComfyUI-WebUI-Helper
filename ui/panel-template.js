@@ -2,7 +2,7 @@ export function getPanelHtml({ panelId, modes }) {
     return `<div id="${panelId}">
 	<div class="panel-control-bar">
 		<div class="panel-title-group">
-			<span class="comfy-conn-status disconnected" id="comfy-conn-indicator" title="未连接"></span><b>酒馆图片生成器 v5.3</b>
+			<span class="comfy-conn-status disconnected" id="comfy-conn-indicator" title="未连接"></span><b>酒馆图片生成器 v5.4</b>
 		</div>
 		<button type="button" class="floating_panel_close" title="关闭面板"><i class="fa-fw fa-solid fa-circle-xmark"></i></button>
 	</div>
@@ -55,6 +55,7 @@ export function getPanelHtml({ panelId, modes }) {
 				<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-auto-generate" type="checkbox"><b>自动生图</b><span>- 仅对最新消息的"开始生成"有效</span></label></div>
 				<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-enable-comparison" type="checkbox" checked><b>图片对比</b><span>- 重新生成时显示新旧图片对比滑块</span></label></div>
 				<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-hide-buttons" type="checkbox"><b>隐藏按钮</b><span>- 生成后隐藏按钮，双击图片重新生成</span></label></div>
+				<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-direct-connection" type="checkbox"><b>直连后端</b><span>- 不经 SillyTavern 代理，避免后端日志刷屏；需 ComfyUI 加 --enable-cors-header / WebUI 加 --cors-allow-origins</span></label></div>
 				<fieldset style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
 					<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">尺寸设置</legend>
 					<div class="comfy-settings-grid" style="margin-bottom: 0;">

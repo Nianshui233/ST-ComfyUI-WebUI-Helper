@@ -261,19 +261,26 @@ let initialized = false;
 
     // [Phase 2.1] BlobURL Tracker - prevents memory leaks from unreleased object URLs
     const BlobURLTracker = {
-        urls: new Set(),
-        create(blob) {
+        // url -> tag。tag 用于分桶：'cache-grid' 等可单独批量回收，
+        // 不波及聊天里正在显示的图片（默认 'default'）。
+        urls: new Map(),
+        create(blob, tag = 'default') {
             const url = URL.createObjectURL(blob);
-            this.urls.add(url);
+            this.urls.set(url, tag);
             return url;
         },
         revoke(url) {
+            if (!this.urls.has(url)) return;
             URL.revokeObjectURL(url);
             this.urls.delete(url);
         },
-        revokeAll() {
-            for (const url of this.urls) URL.revokeObjectURL(url);
-            this.urls.clear();
+        // tag === null 时回收全部（页面卸载等）；否则只回收指定分桶。
+        revokeAll(tag = null) {
+            for (const [url, urlTag] of this.urls) {
+                if (tag !== null && urlTag !== tag) continue;
+                URL.revokeObjectURL(url);
+                this.urls.delete(url);
+            }
         }
     };
 
@@ -516,6 +523,7 @@ let initialized = false;
         'comfyui_negative_prompt',
         'comfyui_enable_comparison',
         'comfyui_hide_buttons',
+        'comfyui_direct_connection',
         'selected_embeddings',
         'comfyui_selected_loras',
         'comfyui_panel_position',
@@ -568,6 +576,7 @@ let initialized = false;
         img2imgDenoising: 0.75,
         enableComparison: true,
         hideButtons: false,
+        directConnection: false,
     };
 
     // Shared runtime state
@@ -665,6 +674,15 @@ let initialized = false;
         activePromptId: null,
         activeClientId: null,
         lastPreviewDataUrl: null,
+        // [WS 取结果] 通过 WebSocket 直接收集 ComfyUI 执行产出，省去 /history 轮询
+        executedImages: [],
+        executionPromise: null,
+        _execResolve: null,
+        _execReject: null,
+        // [取消生成] 当前任务的后端地址/模式与取消标志
+        cancelled: false,
+        activeUrl: null,
+        activeMode: null,
 
         createUI(anchorElement) {
             this.remove(); // 清理旧的
@@ -675,6 +693,13 @@ let initialized = false;
             this.text = document.createElement('div');
             this.text.className = 'comfy-progress-text';
             this.container.appendChild(this.bar);
+            // [取消生成] 进度条旁的取消按钮
+            this.cancelBtn = document.createElement('button');
+            this.cancelBtn.type = 'button';
+            this.cancelBtn.className = 'comfy-button error comfy-cancel-button';
+            this.cancelBtn.textContent = '取消';
+            this.cancelBtn.addEventListener('click', () => { this.cancel(); });
+            anchorElement.insertAdjacentElement('afterend', this.cancelBtn);
             anchorElement.insertAdjacentElement('afterend', this.text);
             anchorElement.insertAdjacentElement('afterend', this.container);
         },
@@ -711,6 +736,35 @@ let initialized = false;
             this.lastPreviewDataUrl = null;
         },
 
+        // [WS 取结果] 完成/失败时仅 settle 一次
+        _settleExecution(payload) {
+            if (this._imageFallbackTimer) { clearTimeout(this._imageFallbackTimer); this._imageFallbackTimer = null; }
+            if (this._execResolve) {
+                const resolve = this._execResolve;
+                this._execResolve = null;
+                this._execReject = null;
+                resolve(payload);
+            }
+        },
+        _rejectExecution(error) {
+            if (this._imageFallbackTimer) { clearTimeout(this._imageFallbackTimer); this._imageFallbackTimer = null; }
+            if (this._execReject) {
+                const reject = this._execReject;
+                this._execResolve = null;
+                this._execReject = null;
+                reject(error);
+            }
+        },
+        // 收到产出图后，若完成事件（executing null）迟迟不来，3s 后兜底 settle，
+        // 避免极旧版本 ComfyUI 不发完成事件导致长时间挂起。
+        _armImageFallback() {
+            if (this._imageFallbackTimer) return;
+            this._imageFallbackTimer = setTimeout(() => {
+                this._imageFallbackTimer = null;
+                if (this.executedImages.length) this._settleExecution({ completed: true });
+            }, 3000);
+        },
+
         startComfyUI(url, promptId, clientId) {
             if (this.ws) {
                 try { this.ws.close(); } catch {}
@@ -719,17 +773,62 @@ let initialized = false;
             this.clearPreview();
             this.activePromptId = promptId;
             this.activeClientId = clientId;
+            this.activeUrl = url;
+            this.activeMode = MODES.COMFYUI;
+            this.executedImages = [];
+            this._imageFallbackTimer = null;
+            // 注意：cancelled 由本次生成开始时的 createUI()->remove() 归零，
+            // 这里不重置，否则会冲掉批量/等待过程中用户的取消。
+            // 新建执行结果 Promise（由 WS 完成事件或取消来 settle/reject）
+            this.executionPromise = new Promise((resolve, reject) => {
+                this._execResolve = resolve;
+                this._execReject = reject;
+            });
+            // 防止 HTTP 兜底路径下无人 await 时，取消/出错导致 unhandledrejection 噪音。
+            // waitForExecution 仍可独立 await 并捕获该 reject（一个 Promise 可挂多个处理器）。
+            this.executionPromise.catch(() => {});
             try {
                 const wsUrl = `${url.replace(/^http/, 'ws')}/ws?clientId=${encodeURIComponent(clientId)}`;
-                this.ws = new WebSocket(wsUrl);
-                this.ws.binaryType = 'arraybuffer';
-                this.ws.onmessage = (event) => {
+                const ws = new WebSocket(wsUrl);
+                this.ws = ws;
+                ws.binaryType = 'arraybuffer';
+                ws.onmessage = (event) => {
+                    // 仅处理当前活动 WS 的消息，避免上一批 WS 误 settle 新一批
+                    if (this.ws !== ws) return;
                     try {
                         if (typeof event.data === 'string') {
                             const msg = JSON.parse(event.data);
+                            const data = msg.data || {};
+                            // 仅处理本任务的事件（旧版本可能无 prompt_id，则视为本任务）
+                            const mine = !data.prompt_id || data.prompt_id === this.activePromptId;
+
                             if (msg.type === 'progress') {
-                                const { value, max } = msg.data;
-                                this.update(value / max, `${value}/${max} 步`);
+                                const { value, max } = data;
+                                if (max) this.update(value / max, `${value}/${max} 步`);
+                                return;
+                            }
+                            if (!mine) return;
+
+                            if (msg.type === 'executed' && data.output?.images?.length) {
+                                this.executedImages.push(...data.output.images);
+                                this._armImageFallback();
+                                return;
+                            }
+                            if (msg.type === 'executing' && data.node === null) {
+                                this._settleExecution({ completed: true });
+                                return;
+                            }
+                            if (msg.type === 'execution_success') {
+                                this._settleExecution({ completed: true });
+                                return;
+                            }
+                            if (msg.type === 'execution_error' || msg.type === 'execution_interrupted') {
+                                if (this.cancelled) {
+                                    this._rejectExecution(makeCancelledError());
+                                } else {
+                                    this._rejectExecution(new Error(`ComfyUI 执行${msg.type === 'execution_interrupted' ? '被中断' : '出错'}`));
+                                }
+                                return;
                             }
                             return;
                         }
@@ -737,23 +836,74 @@ let initialized = false;
                         this.capturePreview(event.data);
                     } catch {}
                 };
-                this.ws.onerror = () => { this.ws = null; };
+                // WS 连接失败/中途关闭：标记不可用并立即结束等待，让调用方回退 HTTP。
+                // 用 this.ws === ws 守卫，避免关闭旧 WS 时误 settle 新一批的 Promise。
+                ws.onerror = () => { if (this.ws === ws) { this.ws = null; this._settleExecution({ wsFailed: true }); } };
+                ws.onclose = () => { if (this.ws === ws) this._settleExecution({ wsFailed: true }); };
             } catch {}
         },
 
+        // [WS 取结果] 等待 WS 完成事件；返回收集到的产出图。
+        // WS 不可用或超时 → 返回 null（调用方回退到 HTTP 轮询）。
+        // 执行出错 / 被取消 → 抛出（取消错误带 cancelled 标志）。
+        async waitForExecution(timeoutMs) {
+            if (!this.ws || !this.executionPromise) return null;
+            let timer = null;
+            const timeout = new Promise(resolve => {
+                timer = setTimeout(() => resolve('__WS_TIMEOUT__'), timeoutMs);
+            });
+            try {
+                const result = await Promise.race([this.executionPromise, timeout]);
+                if (result === '__WS_TIMEOUT__' || result?.wsFailed) return null;
+                return { images: this.executedImages.slice(), completed: true };
+            } finally {
+                if (timer) clearTimeout(timer);
+            }
+        },
+
+        // [取消生成] 通知后端中断并 reject 等待中的 Promise
+        async cancel() {
+            if (this.cancelled) return;
+            this.cancelled = true;
+            if (this.cancelBtn) {
+                this.cancelBtn.disabled = true;
+                this.cancelBtn.textContent = '取消中...';
+            }
+            this.update(this.bar ? (parseFloat(this.bar.style.width) || 0) / 100 : 0, '正在取消...');
+            const url = this.activeUrl;
+            const mode = this.activeMode;
+            if (url) {
+                const endpoint = mode === MODES.WEBUI
+                    ? `${url}/sdapi/v1/interrupt`
+                    : `${url}/interrupt`;
+                try {
+                    await makeRequest({ method: 'POST', url: endpoint, timeout: 5000 });
+                } catch (e) {
+                    console.warn('[AI Gen] 中断请求失败:', e);
+                }
+            }
+            this._rejectExecution(makeCancelledError());
+        },
+
         startWebUI(url) {
+            this.activeUrl = url;
+            this.activeMode = MODES.WEBUI;
             this.pollTimer = setInterval(async () => {
                 try {
                     const resp = await makeRequest({ method: 'GET', url: `${url}/sdapi/v1/progress`, timeout: 3000 });
                     const data = JSON.parse(resp.responseText);
                     this.update(data.progress, `${Math.round(data.progress * 100)}% (ETA: ${data.eta_relative?.toFixed(0) || '?'}s)`);
                 } catch {}
-            }, 1000);
+            }, 1500);
         },
 
         stop() {
             if (this.ws) { try { this.ws.close(); } catch {} this.ws = null; }
             if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
+            if (this._imageFallbackTimer) { clearTimeout(this._imageFallbackTimer); this._imageFallbackTimer = null; }
+            // 丢弃悬空的执行结果回调，避免迟到的 WS 消息 settle 旧 Promise
+            this._execResolve = null;
+            this._execReject = null;
             this.activePromptId = null;
             this.activeClientId = null;
         },
@@ -762,8 +912,10 @@ let initialized = false;
             this.stop();
             this.container?.remove();
             this.text?.remove();
+            this.cancelBtn?.remove();
             this.clearPreview();
-            this.container = null; this.bar = null; this.text = null;
+            this.container = null; this.bar = null; this.text = null; this.cancelBtn = null;
+            this.cancelled = false;
         }
     };
 
@@ -1008,6 +1160,15 @@ let initialized = false;
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+    }
+
+    /**
+     * 构造一个标记为「用户取消」的错误，生成流程据此区分取消与真实失败。
+     */
+    function makeCancelledError() {
+        const error = new Error('生成已取消');
+        error.cancelled = true;
+        return error;
     }
 
     /**
@@ -1951,8 +2112,8 @@ let initialized = false;
             img.style.borderRadius = '4px';
             img.style.cursor = 'pointer';
             img._aiGenMeta = { seed };
-            img.addEventListener('mouseenter', (e) => { if (img._aiGenMeta) ImageTooltip.show(e, img._aiGenMeta); });
-            img.addEventListener('mousemove', (e) => ImageTooltip.position(e));
+            img.addEventListener('mouseenter', (e) => { if (img._aiGenMeta) ImageTooltip.scheduleShow(e, img._aiGenMeta); });
+            img.addEventListener('mousemove', (e) => { if (img._aiGenMeta) ImageTooltip.onMove(e, img._aiGenMeta); });
             img.addEventListener('mouseleave', () => ImageTooltip.hide());
             img.addEventListener('click', () => window.open(imageUrl, '_blank'));
             container.appendChild(img);
@@ -3758,6 +3919,7 @@ let initialized = false;
             negativePrompt: ['comfyui_negative_prompt', DEFAULT_SETTINGS.negativePrompt],
             enableComparison: ['comfyui_enable_comparison', DEFAULT_SETTINGS.enableComparison],
             hideButtons: ['comfyui_hide_buttons', DEFAULT_SETTINGS.hideButtons],
+            directConnection: ['comfyui_direct_connection', DEFAULT_SETTINGS.directConnection],
         };
 
         const settingsEntries = Object.entries(settingsToLoad);
@@ -3944,8 +4106,9 @@ let initialized = false;
         const cacheGrid = document.getElementById('cache-grid');
         const cacheStats = document.getElementById('cache-stats');
 
-        // [Phase 2.1] Revoke all tracked blob URLs before reloading
-        BlobURLTracker.revokeAll();
+        // [Phase 2.1] 仅回收上一批缓存网格的 blob URL，
+        // 不波及聊天中正在显示的生成图（default 桶）。
+        BlobURLTracker.revokeAll('cache-grid');
 
         try {
             const images = await imageCacheDB.getAllImages();
@@ -3974,7 +4137,7 @@ let initialized = false;
                 const img = document.createElement('img');
                 img.className = 'cache-item-image';
                 if (data.blob) {
-                    const blobUrl = BlobURLTracker.create(data.blob);
+                    const blobUrl = BlobURLTracker.create(data.blob, 'cache-grid');
                     img.src = blobUrl;
                 }
                 img.alt = '缓存图片';
@@ -4571,15 +4734,24 @@ let initialized = false;
             setTimeout(() => setupGeneratedState(button, generationId), 2000);
 
         } catch (error) {
-            console.error('生成图片失败:', error);
-            showToast('error', error.message || String(error));
-            button.className = 'comfy-button comfy-chat-generate-button error';
-            button.textContent = '失败';
-            setTimeout(() => {
-                button.textContent = '重新生成';
+            if (error?.cancelled) {
+                // [取消生成] 用户主动取消：恢复按钮可点，不显示红色「失败」
+                showToast('info', '已取消生成');
+                group.classList.remove('comfy-buttons-hidden');
                 button.disabled = false;
                 button.className = 'comfy-button comfy-chat-generate-button';
-            }, 3000);
+                button.textContent = isFirstGeneration ? '开始生成' : '重新生成';
+            } else {
+                console.error('生成图片失败:', error);
+                showToast('error', error.message || String(error));
+                button.className = 'comfy-button comfy-chat-generate-button error';
+                button.textContent = '失败';
+                setTimeout(() => {
+                    button.textContent = '重新生成';
+                    button.disabled = false;
+                    button.className = 'comfy-button comfy-chat-generate-button';
+                }, 3000);
+            }
         } finally {
             delete button.dataset.processing;
             ProgressTracker.remove();
@@ -4781,9 +4953,21 @@ let initialized = false;
             if (!promptId) throw new Error('ComfyUI未返回Prompt ID');
             ProgressTracker.activePromptId = promptId;
 
-            const finalHistory = await pollForResult(url, promptId);
-            let imageUrl = findImageUrlInHistory(finalHistory, promptId, url);
+            // [WS 取结果] 优先用 WebSocket 完成事件直接取图（零 /history 轮询）
+            let imageUrl = null;
+            let finalHistory = null;
+            const wsResult = await ProgressTracker.waitForExecution(POLLING_TIMEOUT_MS);
+            if (wsResult?.images?.length) {
+                imageUrl = pickImageUrlFromList(wsResult.images, url);
+            }
 
+            // 兜底1：WS 不可用 / 未取到图 → HTTP 轮询 /history（WS 已完成则首轮即返回）
+            if (!imageUrl) {
+                finalHistory = await pollForResult(url, promptId);
+                imageUrl = findImageUrlInHistory(finalHistory, promptId, url);
+            }
+
+            // 兜底2：WebSocket 预览图
             if (!imageUrl) {
                 imageUrl = await ProgressTracker.waitForPreview();
                 if (imageUrl) {
@@ -4908,6 +5092,8 @@ let initialized = false;
             headers: { 'Content-Type': 'application/json' },
             data: JSON.stringify(params),
         }, 2);
+        // [取消生成] interrupt 会让 txt2img 提前返回，此处识别取消，避免把半成品当成功
+        if (ProgressTracker.cancelled) throw makeCancelledError();
         const result = safeJsonParse(response.responseText, null, 'WebUI generation');
         if (!result || typeof result !== 'object') {
             throw new Error('WebUI 返回了无效生成结果');
@@ -5051,6 +5237,11 @@ let initialized = false;
             const imageGracePeriodMs = 3000;
 
             const poll = async () => {
+                // [取消生成] 用户已取消则立即结束轮询
+                if (ProgressTracker.cancelled) {
+                    reject(makeCancelledError());
+                    return;
+                }
                 // 超时检查
                 if (Date.now() - startTime > POLLING_TIMEOUT_MS) {
                     reject(new Error('生成超时（可能是复杂工作流，请稍后在ComfyUI中查看）'));
@@ -5148,6 +5339,28 @@ let initialized = false;
     }
 
     /**
+     * 由 ComfyUI 图片描述符构造 /view 访问 URL。
+     */
+    function buildComfyViewUrl(baseUrl, image) {
+        return `${baseUrl}/view?${new URLSearchParams({
+            filename: image.filename,
+            subfolder: image.subfolder || '',
+            type: image.type || 'temp',
+        })}`;
+    }
+
+    /**
+     * 从图片列表中优先选 output 类型（SaveImage），否则取第一张；无则返回 null。
+     * 供 /history 解析与 WebSocket executed 事件共用。
+     */
+    function pickImageUrlFromList(images, baseUrl) {
+        if (!Array.isArray(images) || images.length === 0) return null;
+        const valid = images.filter(image => image?.filename);
+        const preferred = valid.find(image => image.type === 'output') || valid[0];
+        return preferred ? buildComfyViewUrl(baseUrl, preferred) : null;
+    }
+
+    /**
     * 在历史记录中查找图片URL
     * 兼容 SaveImage (type=output) 和 PreviewImage (type=temp)
     * 部分 ComfyUI 版本中 PreviewImage 的图片在 outputs[nodeId].ui.images 下
@@ -5161,19 +5374,8 @@ let initialized = false;
             return null;
         }
 
-        const images = getImagesFromHistory(history, promptId);
-        let fallbackImage = null;
-
-        for (const image of images) {
-            if (image.type === 'output') {
-                return `${baseUrl}/view?${new URLSearchParams({ filename: image.filename, subfolder: image.subfolder || '', type: image.type })}`;
-            }
-            if (!fallbackImage) fallbackImage = image;
-        }
-
-        if (fallbackImage) {
-            return `${baseUrl}/view?${new URLSearchParams({ filename: fallbackImage.filename, subfolder: fallbackImage.subfolder || '', type: fallbackImage.type || 'temp' })}`;
-        }
+        const imageUrl = pickImageUrlFromList(getImagesFromHistory(history, promptId), baseUrl);
+        if (imageUrl) return imageUrl;
 
         if (!silent) {
             console.warn('[AI Gen] 未在以下输出中找到图片:', Object.keys(outputs).map(id => ({ id, keys: Object.keys(outputs[id]) })));

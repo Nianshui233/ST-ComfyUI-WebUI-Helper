@@ -1213,6 +1213,9 @@ export function getPanelStyles({ panelId, buttonId }) {
 .comfy-progress-text {
     font-size: 11px; color: var(--vp-text-muted); margin-top: 2px; text-align: center;
 }
+.comfy-cancel-button {
+    margin-top: 6px; padding: 2px 12px; font-size: 12px; display: block; margin-left: auto; margin-right: auto;
+}
 
 /* Feature 14: 图片对比模式 */
 .comfy-compare-container {

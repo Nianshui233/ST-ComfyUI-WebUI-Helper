@@ -1,5 +1,15 @@
 # Changelog
 
+## 5.4.0
+
+- Added cancel/interrupt for in-progress generation (ComfyUI `/interrupt`, WebUI `/sdapi/v1/interrupt`) with a cancel button on the progress bar.
+- Switched ComfyUI result retrieval to WebSocket completion events, with HTTP `/history` polling and preview frames as fallbacks; greatly reduces polling traffic.
+- Added optional "direct connection" mode that bypasses SillyTavern's `/proxy` to stop backend log spam and the `MaxListenersExceededWarning` (requires CORS enabled on ComfyUI/WebUI).
+- Reduced WebUI progress polling frequency.
+- Fixed cache-panel refresh revoking blob URLs of images still shown in chat (BlobURLTracker is now bucketed by tag).
+- Fixed a TypeError in multi-image (batch) hover tooltips (`ImageTooltip` method names).
+- Hardened the generation promise lifecycle (no unhandled rejection on cancel during HTTP fallback) and removed dead code in the connection monitor.
+
 ## 5.3.0
 
 - Migrated the original userscript into a SillyTavern third-party extension.

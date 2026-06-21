@@ -1,6 +1,5 @@
 export function createConnectionMonitor({ getCurrentMode, modes, getValue, makeRequest }) {
     return {
-        timer: null,
         indicator: null,
         init() {
             this.indicator = document.getElementById('comfy-conn-indicator');
@@ -36,8 +35,7 @@ export function createConnectionMonitor({ getCurrentMode, modes, getValue, makeR
             this.check();
         },
         destroy() {
-            clearInterval(this.timer);
-            this.timer = null;
+            // 手动连接模式下没有后台定时器；保留方法供断开按钮调用。
         },
     };
 }
