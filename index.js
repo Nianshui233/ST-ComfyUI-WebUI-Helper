@@ -400,29 +400,35 @@ let initialized = false;
         console.log(`[AI Gen Toast]: ${type.toUpperCase()} - ${message}`);
         const toastId = `toast-${Date.now()}`;
         const toastColors = {
-            success: 'var(--vp-success-color, #00ff9c)',
-            info: 'var(--vp-accent-color, #00d1ff)',
-            warning: 'var(--vp-warning-color, #ffa500)',
-            error: 'var(--vp-error-color, #ff4747)',
+            success: 'var(--vp-success-color, #73d48f)',
+            info: 'var(--vp-accent-color, #66d7c7)',
+            warning: 'var(--vp-warning-color, #e9b44c)',
+            error: 'var(--vp-error-color, #ff6f61)',
         };
 
         const toast = document.createElement('div');
         toast.id = toastId;
         toast.style.cssText = `
             position: fixed;
-            top: ${20 + activeToastCount * 60}px;
+            top: ${20 + activeToastCount * 64}px;
             right: 20px;
-            padding: 15px 20px;
-            background-color: var(--vp-bg-color, rgba(10, 15, 25, 0.9));
-            color: var(--vp-text-color, #e0e5f0);
-            border-radius: 8px;
-            z-index: 10001;
-            border-left: 5px solid ${toastColors[type]};
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-            font-family: var(--vp-font, sans-serif);
+            max-width: 360px;
+            padding: 13px 16px 13px 15px;
+            color: var(--vp-text-color, #f3efe6);
+            font-family: var(--vp-font, system-ui, sans-serif);
+            font-size: 13px;
+            line-height: 1.45;
+            border: 1px solid var(--vp-border-strong, rgba(244, 235, 214, 0.22));
+            border-left: 3px solid ${toastColors[type]};
+            border-radius: var(--vp-radius-md, 8px);
+            background: var(--vp-panel-color-strong, rgba(32, 36, 42, 0.985));
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            z-index: 10005;
             opacity: 0;
-            transform: translateX(100%);
-            transition: opacity 0.3s ease, transform 0.3s ease;
+            transform: translateX(110%);
+            transition: opacity 0.3s ease, transform 0.3s var(--vp-ease, cubic-bezier(0.2, 0.7, 0.3, 1));
         `;
         toast.textContent = message;
 

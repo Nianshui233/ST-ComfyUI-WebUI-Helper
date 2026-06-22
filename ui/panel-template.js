@@ -60,16 +60,16 @@ export function getPanelHtml({ panelId, modes }) {
 				<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-enable-comparison" type="checkbox" checked><b>图片对比</b><span>- 重新生成时显示新旧图片对比滑块</span></label></div>
 				<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-hide-buttons" type="checkbox"><b>隐藏按钮</b><span>- 生成后隐藏按钮，双击图片重新生成</span></label></div>
 				<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-direct-connection" type="checkbox"><b>直连后端</b><span>- 不经 SillyTavern 代理，避免后端日志刷屏；需 ComfyUI 加 --enable-cors-header / WebUI 加 --cors-allow-origins</span></label></div>
-				<fieldset style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-					<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">尺寸设置</legend>
+				<fieldset>
+					<legend>尺寸设置</legend>
 					<div class="comfy-settings-grid" style="margin-bottom: 0;">
 						<div><label for="comfyui-display-width">显示宽度 (0=自动)</label><input id="comfyui-display-width" type="number" placeholder="400" min="0"></div>
 						<div><label for="comfyui-display-height">显示高度 (0=自动)</label><input id="comfyui-display-height" type="number" placeholder="0" min="0"></div>
 					</div>
 					<button id="comfyui-apply-dims" class="comfy-button" style="width:100%; margin-top: 15px;">应用显示尺寸到所有图片</button>
 				</fieldset>
-				<fieldset style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-					<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">旧标记兼容</legend>
+				<fieldset>
+					<legend>旧标记兼容</legend>
 					<div class="comfy-settings-grid">
 						<div><label for="comfyui-start-tag">开始标记</label><input id="comfyui-start-tag" type="text"></div>
 						<div><label for="comfyui-end-tag">结束标记</label><input id="comfyui-end-tag" type="text"></div>
@@ -78,8 +78,8 @@ export function getPanelHtml({ panelId, modes }) {
 					<button id="comfyui-apply-tags" class="comfy-button" style="width:100%; margin-top: 15px;">应用标记</button>
 					<button id="comfyui-scan-chat" class="comfy-button" style="width:100%; margin-top: 10px;">扫描当前聊天</button>
 				</fieldset>
-				<fieldset style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-					<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">配置备份</legend>
+				<fieldset>
+					<legend>配置备份</legend>
 					<div class="workflow-action-row" style="margin-bottom: 0;">
 						<button id="settings-export-all" class="comfy-button">导出全部配置</button>
 						<button id="settings-import-all" class="comfy-button warning">导入全部配置</button>
@@ -90,8 +90,8 @@ export function getPanelHtml({ panelId, modes }) {
 			<div id="tab-generation" class="tab-content">
 				<!-- ComfyUI 高级设置 -->
 				<div class="comfyui-settings">
-					<fieldset class="comfyui-settings advanced-section advanced-generation-section" style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-						<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">ComfyUI 生成参数</legend>
+					<fieldset class="comfyui-settings advanced-section advanced-generation-section">
+						<legend>ComfyUI 生成参数</legend>
 						<div class="comfy-settings-grid">
 							<div><label for="comfyui-gen-width">生成宽度 (Width)</label><input id="comfyui-gen-width" type="number" placeholder="512" min="64" step="8"></div>
 							<div><label for="comfyui-gen-height">生成高度 (Height)</label><input id="comfyui-gen-height" type="number" placeholder="768" min="64" step="8"></div>
@@ -140,14 +140,14 @@ export function getPanelHtml({ panelId, modes }) {
 							</div>
 							<button id="comfyui-apply-gen-params" class="comfy-button" style="width:100%; margin-top: 15px;">应用生成参数</button>
 						</fieldset>
-						<fieldset class="comfyui-settings advanced-section advanced-img2img-section" style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-							<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">图生图 (Img2Img)</legend>
+						<fieldset class="comfyui-settings advanced-section advanced-img2img-section">
+							<legend>图生图 (Img2Img)</legend>
 							<label class="comfy-auto-generate-label"><input id="comfyui-img2img-enable" type="checkbox"><b>启用图生图</b></label>
 							<div id="comfyui-img2img-area" style="display:none; margin-top:10px;">
 								<div class="comfy-settings-grid">
 									<div><label for="comfyui-img2img-denoising">重绘强度</label><input id="comfyui-img2img-denoising" type="number" min="0" max="1" step="0.05" value="0.75"></div>
 								</div>
-								<div id="comfyui-img2img-dropzone" style="border:2px dashed var(--vp-border-color); padding:20px; text-align:center; border-radius:8px; cursor:pointer; margin-top:10px;">
+								<div id="comfyui-img2img-dropzone" class="comfy-dropzone">
 									点击或拖拽上传参考图片
 									<input type="file" id="comfyui-img2img-file" accept="image/*" style="display:none;">
 								</div>
@@ -160,8 +160,8 @@ export function getPanelHtml({ panelId, modes }) {
 					</div>
 					<!-- WebUI 高级设置 -->
 				<div class="webui-settings" style="display: none;">
-					<fieldset class="webui-settings advanced-section advanced-generation-section" style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-						<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">WebUI 生成参数</legend>
+					<fieldset class="webui-settings advanced-section advanced-generation-section">
+						<legend>WebUI 生成参数</legend>
 						<div class="comfy-settings-grid">
 							<div><label for="webui-sampler">采样器</label><select id="webui-sampler">
 									<option>Euler a</option>
@@ -239,14 +239,14 @@ export function getPanelHtml({ panelId, modes }) {
 						</div>
 						<button id="webui-apply-gen-params" class="comfy-button" style="width:100%; margin-top: 15px;">应用生成参数</button>
 						</fieldset>
-						<fieldset class="webui-settings advanced-section advanced-img2img-section" style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-							<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">图生图 (Img2Img)</legend>
+						<fieldset class="webui-settings advanced-section advanced-img2img-section">
+							<legend>图生图 (Img2Img)</legend>
 							<label class="comfy-auto-generate-label"><input id="webui-img2img-enable" type="checkbox"><b>启用图生图</b></label>
 							<div id="webui-img2img-area" style="display:none; margin-top:10px;">
 								<div class="comfy-settings-grid">
 									<div><label for="webui-img2img-denoising">重绘强度</label><input id="webui-img2img-denoising" type="number" min="0" max="1" step="0.05" value="0.75"></div>
 								</div>
-								<div id="webui-img2img-dropzone" style="border:2px dashed var(--vp-border-color); padding:20px; text-align:center; border-radius:8px; cursor:pointer; margin-top:10px;">
+								<div id="webui-img2img-dropzone" class="comfy-dropzone">
 									点击或拖拽上传参考图片
 									<input type="file" id="webui-img2img-file" accept="image/*" style="display:none;">
 								</div>
@@ -257,8 +257,8 @@ export function getPanelHtml({ panelId, modes }) {
 							</div>
 						</fieldset>
 					</div>
-				<fieldset class="advanced-section advanced-prompts-section" style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-					<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">提示词预设管理</legend>
+				<fieldset class="advanced-section advanced-prompts-section">
+					<legend>提示词预设管理</legend>
 					<div class="comfy-settings-grid" style="grid-template-columns: 1fr auto auto auto;">
 						<div>
 							<label for="prompt-preset-select">选择预设</label>
@@ -289,8 +289,8 @@ export function getPanelHtml({ panelId, modes }) {
 			<div id="tab-img2img" class="tab-content"></div>
 			<div id="tab-prompts" class="tab-content"></div>
 			<div id="tab-ai-prompt" class="tab-content">
-				<fieldset style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-					<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">AI 绘图主流程</legend>
+				<fieldset>
+					<legend>AI 绘图主流程</legend>
 					<div class="comfy-ai-prompt-options">
 						<label class="comfy-auto-generate-label"><input id="comfyui-ai-prompt-enabled" type="checkbox" checked><b>启用 AI 绘图</b><span>- 分析聊天画面并生成绘图提示词</span></label>
 						<label class="comfy-auto-generate-label"><input id="comfyui-ai-prompt-show-buttons" type="checkbox" checked><b>显示消息按钮</b><span>- 在助手消息下方显示 AI 生图操作</span></label>
@@ -302,8 +302,8 @@ export function getPanelHtml({ panelId, modes }) {
 						<div><label for="comfyui-ai-prompt-response-length">响应长度</label><input id="comfyui-ai-prompt-response-length" type="number" min="120" max="1000" step="10" value="350"></div>
 					</div>
 				</fieldset>
-				<fieldset style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-					<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">LLM 来源</legend>
+				<fieldset>
+					<legend>LLM 来源</legend>
 					<div class="comfy-settings-grid">
 						<div>
 							<label for="comfyui-ai-prompt-provider">提示词分析模型</label>
@@ -349,8 +349,8 @@ export function getPanelHtml({ panelId, modes }) {
 						<button id="comfyui-ai-prompt-test-api" class="comfy-button" style="width:100%; margin-top: 10px;">测试 AI 接口</button>
 					</div>
 				</fieldset>
-				<fieldset style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-					<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">绘图分析规则预设</legend>
+				<fieldset>
+					<legend>绘图分析规则预设</legend>
 					<div class="comfy-settings-grid comfy-ai-rule-preset-grid">
 						<div>
 							<label for="comfyui-ai-prompt-rule-preset-select">选择规则预设</label>
@@ -474,8 +474,8 @@ export function getPanelHtml({ panelId, modes }) {
                             <i class="fa-solid fa-arrows-rotate"></i> 刷新 </button>
                     </div>
                     <!-- ComfyUI LoRA预设管理 -->
-                    <fieldset style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                        <legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">LoRA预设管理</legend>
+                    <fieldset>
+                        <legend>LoRA预设管理</legend>
                         <div class="comfy-settings-grid" style="grid-template-columns: minmax(160px, 1fr) 150px auto auto auto;">
                             <div>
                                 <label for="comfyui-lora-preset-select">选择预设</label>
