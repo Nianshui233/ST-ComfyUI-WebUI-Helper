@@ -20,7 +20,8 @@ export function getPanelHtml({ panelId, modes }) {
 				<button class="tab-button active" data-tab="general">基本设置</button>
 				<button class="tab-button" data-tab="generation">生成参数</button>
 				<button class="tab-button" data-tab="img2img">图生图</button>
-				<button class="tab-button" data-tab="prompts">提示词预设</button>
+				<button class="tab-button" data-tab="prompts">提示词</button>
+				<button class="tab-button" data-tab="ai-prompt">AI/LLM管理</button>
 				<button class="tab-button comfyui-settings" data-tab="workflows">工作流管理</button>
 				<button class="tab-button webui-settings" data-tab="loras" style="display: none;">WebUI LoRA</button>
 				<button class="tab-button comfyui-settings" data-tab="comfy-loras">ComfyUI LoRA</button>
@@ -52,39 +53,24 @@ export function getPanelHtml({ panelId, modes }) {
 						</div>
 					</div>
 				</div>
-				<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-auto-generate" type="checkbox"><b>自动生图</b><span>- 仅对最新消息的"开始生成"有效</span></label></div>
 				<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-enable-comparison" type="checkbox" checked><b>图片对比</b><span>- 重新生成时显示新旧图片对比滑块</span></label></div>
 				<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-hide-buttons" type="checkbox"><b>隐藏按钮</b><span>- 生成后隐藏按钮，双击图片重新生成</span></label></div>
 				<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-direct-connection" type="checkbox"><b>直连后端</b><span>- 不经 SillyTavern 代理，避免后端日志刷屏；需 ComfyUI 加 --enable-cors-header / WebUI 加 --cors-allow-origins</span></label></div>
 				<fieldset style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
 					<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">尺寸设置</legend>
 					<div class="comfy-settings-grid" style="margin-bottom: 0;">
-						<div><label for="comfyui-gen-width">生成宽度 (Width)</label><input id="comfyui-gen-width" type="number" placeholder="512" min="64" step="8"></div>
-						<div><label for="comfyui-gen-height">生成高度 (Height)</label><input id="comfyui-gen-height" type="number" placeholder="768" min="64" step="8"></div>
-						<div style="grid-column: 1 / -1;" class="comfy-size-presets">
-							<label style="font-weight: 600; margin-bottom: 4px; display: block;">快捷预设</label>
-							<div style="display: flex; flex-wrap: wrap; gap: 4px;">
-								<button type="button" class="comfy-button comfy-size-preset-btn" data-w="512" data-h="512">512x512</button>
-								<button type="button" class="comfy-button comfy-size-preset-btn" data-w="512" data-h="768">512x768</button>
-								<button type="button" class="comfy-button comfy-size-preset-btn" data-w="768" data-h="512">768x512</button>
-								<button type="button" class="comfy-button comfy-size-preset-btn" data-w="768" data-h="1024">768x1024</button>
-								<button type="button" class="comfy-button comfy-size-preset-btn" data-w="1024" data-h="768">1024x768</button>
-								<button type="button" class="comfy-button comfy-size-preset-btn" data-w="1024" data-h="1024">1024x1024</button>
-								<button type="button" class="comfy-button comfy-size-preset-btn" data-w="768" data-h="1344">768x1344</button>
-								<button type="button" class="comfy-button comfy-size-preset-btn" data-w="1344" data-h="768">1344x768</button>
-							</div>
-						</div>
 						<div><label for="comfyui-display-width">显示宽度 (0=自动)</label><input id="comfyui-display-width" type="number" placeholder="400" min="0"></div>
 						<div><label for="comfyui-display-height">显示高度 (0=自动)</label><input id="comfyui-display-height" type="number" placeholder="0" min="0"></div>
 					</div>
 					<button id="comfyui-apply-dims" class="comfy-button" style="width:100%; margin-top: 15px;">应用显示尺寸到所有图片</button>
 				</fieldset>
 				<fieldset style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-					<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">内容捕获标记</legend>
+					<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">旧标记兼容</legend>
 					<div class="comfy-settings-grid">
 						<div><label for="comfyui-start-tag">开始标记</label><input id="comfyui-start-tag" type="text"></div>
 						<div><label for="comfyui-end-tag">结束标记</label><input id="comfyui-end-tag" type="text"></div>
 					</div>
+					<label class="comfy-auto-generate-label" style="margin-top: 10px;"><input id="comfyui-auto-generate" type="checkbox"><b>旧标记自动生图</b><span>- 仅对标记生成按钮有效</span></label>
 					<button id="comfyui-apply-tags" class="comfy-button" style="width:100%; margin-top: 15px;">应用标记</button>
 					<button id="comfyui-scan-chat" class="comfy-button" style="width:100%; margin-top: 10px;">扫描当前聊天</button>
 				</fieldset>
@@ -103,6 +89,21 @@ export function getPanelHtml({ panelId, modes }) {
 					<fieldset class="comfyui-settings advanced-section advanced-generation-section" style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
 						<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">ComfyUI 生成参数</legend>
 						<div class="comfy-settings-grid">
+							<div><label for="comfyui-gen-width">生成宽度 (Width)</label><input id="comfyui-gen-width" type="number" placeholder="512" min="64" step="8"></div>
+							<div><label for="comfyui-gen-height">生成高度 (Height)</label><input id="comfyui-gen-height" type="number" placeholder="768" min="64" step="8"></div>
+							<div style="grid-column: 1 / -1;" class="comfy-size-presets">
+								<label style="font-weight: 600; margin-bottom: 4px; display: block;">快捷预设</label>
+								<div style="display: flex; flex-wrap: wrap; gap: 4px;">
+									<button type="button" class="comfy-button comfy-size-preset-btn" data-w="512" data-h="512">512x512</button>
+									<button type="button" class="comfy-button comfy-size-preset-btn" data-w="512" data-h="768">512x768</button>
+									<button type="button" class="comfy-button comfy-size-preset-btn" data-w="768" data-h="512">768x512</button>
+									<button type="button" class="comfy-button comfy-size-preset-btn" data-w="768" data-h="1024">768x1024</button>
+									<button type="button" class="comfy-button comfy-size-preset-btn" data-w="1024" data-h="768">1024x768</button>
+									<button type="button" class="comfy-button comfy-size-preset-btn" data-w="1024" data-h="1024">1024x1024</button>
+									<button type="button" class="comfy-button comfy-size-preset-btn" data-w="768" data-h="1344">768x1344</button>
+									<button type="button" class="comfy-button comfy-size-preset-btn" data-w="1344" data-h="768">1344x768</button>
+								</div>
+							</div>
 							<div><label for="comfyui-sampler">采样器</label><select id="comfyui-sampler">
 									<option>euler</option>
 									<option>euler_ancestral</option>
@@ -283,6 +284,87 @@ export function getPanelHtml({ panelId, modes }) {
 			</div>
 			<div id="tab-img2img" class="tab-content"></div>
 			<div id="tab-prompts" class="tab-content"></div>
+			<div id="tab-ai-prompt" class="tab-content">
+				<fieldset style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+					<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">AI 绘图主流程</legend>
+					<div class="comfy-ai-prompt-options">
+						<label class="comfy-auto-generate-label"><input id="comfyui-ai-prompt-enabled" type="checkbox" checked><b>启用 AI 绘图</b><span>- 分析聊天画面并生成绘图提示词</span></label>
+						<label class="comfy-auto-generate-label"><input id="comfyui-ai-prompt-show-buttons" type="checkbox" checked><b>显示消息按钮</b><span>- 在助手消息下方显示 AI 生图操作</span></label>
+						<label class="comfy-auto-generate-label"><input id="comfyui-ai-prompt-auto" type="checkbox"><b>自动分析提示词</b><span>- 助手回复稳定后自动调用一次 LLM</span></label>
+						<label class="comfy-auto-generate-label"><input id="comfyui-ai-prompt-auto-generate-image" type="checkbox"><b>自动分析并生图</b><span>- 自动提示词完成后直接发送到当前后端</span></label>
+					</div>
+					<div class="comfy-settings-grid">
+						<div><label for="comfyui-ai-prompt-context-messages">上下文条数</label><input id="comfyui-ai-prompt-context-messages" type="number" min="1" max="20" step="1" value="6"></div>
+						<div><label for="comfyui-ai-prompt-response-length">响应长度</label><input id="comfyui-ai-prompt-response-length" type="number" min="120" max="1000" step="10" value="350"></div>
+					</div>
+				</fieldset>
+				<fieldset style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+					<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">LLM 来源</legend>
+					<div class="comfy-settings-grid">
+						<div>
+							<label for="comfyui-ai-prompt-provider">提示词分析模型</label>
+							<select id="comfyui-ai-prompt-provider">
+								<option value="sillytavern">SillyTavern 当前 LLM（默认）</option>
+								<option value="openai_compatible">OpenAI 兼容 API</option>
+							</select>
+						</div>
+						<div>
+							<label for="comfyui-ai-prompt-api-model-select">模型选择</label>
+							<div class="comfy-input-group">
+								<select id="comfyui-ai-prompt-api-model-select"><option value="">自动/手动检测后选择模型...</option></select>
+								<button id="comfyui-ai-prompt-detect-models" class="comfy-button" title="检测模型列表"><i class="fa-solid fa-arrows-rotate"></i></button>
+							</div>
+						</div>
+					</div>
+					<div id="comfyui-ai-prompt-api-settings">
+						<div class="comfy-settings-grid">
+							<div><label for="comfyui-ai-prompt-api-url">API Base URL</label><input id="comfyui-ai-prompt-api-url" type="text" placeholder="http://127.0.0.1:1234/v1"></div>
+							<div><label for="comfyui-ai-prompt-api-key">API Key</label><input id="comfyui-ai-prompt-api-key" type="password" autocomplete="off" placeholder="本地服务可留空"></div>
+						</div>
+						<div class="comfy-settings-grid comfy-ai-key-list-grid">
+							<div>
+								<label for="comfyui-ai-prompt-api-key-select">API Key 列表</label>
+								<select id="comfyui-ai-prompt-api-key-select"><option value="">选择已保存的 Key...</option></select>
+							</div>
+							<div class="comfy-inline-actions">
+								<button id="comfyui-ai-prompt-api-key-load" class="comfy-button" title="把选中的 Key 填入当前 API Key">套用</button>
+								<button id="comfyui-ai-prompt-api-key-save" class="comfy-button" title="把当前 API Key 保存到列表">保存</button>
+								<button id="comfyui-ai-prompt-api-key-delete" class="comfy-button error" title="删除选中的 Key">删除</button>
+							</div>
+						</div>
+						<div class="comfy-hint">API Key 以自定义名称保存到本地列表，列表只显示名称与遮罩尾号；出于安全考虑不会随插件配置导出。</div>
+						<div class="comfy-settings-grid">
+							<div><label for="comfyui-ai-prompt-api-model">手动模型名</label><input id="comfyui-ai-prompt-api-model" type="text" placeholder="例如 gpt-4.1-mini / qwen2.5-vl / local-model"></div>
+							<label class="comfy-auto-generate-label"><input id="comfyui-ai-prompt-auto-detect-models" type="checkbox" checked><b>自动检测模型列表</b><span>- URL / Key / 渠道变化后自动拉取 /models</span></label>
+						</div>
+						<div class="comfy-settings-grid">
+							<div><label for="comfyui-ai-prompt-api-temperature">Temperature</label><input id="comfyui-ai-prompt-api-temperature" type="number" min="0" max="2" step="0.05" value="0.4"></div>
+							<div><label for="comfyui-ai-prompt-api-timeout">API 超时(ms)</label><input id="comfyui-ai-prompt-api-timeout" type="number" min="5000" max="300000" step="1000" value="60000"></div>
+						</div>
+						<div class="comfy-hint">OpenAI 兼容模式会请求 <code>/chat/completions</code>；模型列表检测会请求 <code>/models</code>。Base URL 可填 <code>http://127.0.0.1:1234/v1</code> 或 <code>https://api.openai.com/v1</code>。</div>
+						<button id="comfyui-ai-prompt-test-api" class="comfy-button" style="width:100%; margin-top: 10px;">测试 AI 接口</button>
+					</div>
+				</fieldset>
+				<fieldset style="border: 1px solid var(--vp-border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+					<legend style="color: var(--vp-accent-color); padding: 0 10px; font-weight: 600;">绘图分析规则预设</legend>
+					<div class="comfy-settings-grid comfy-ai-rule-preset-grid">
+						<div>
+							<label for="comfyui-ai-prompt-rule-preset-select">选择规则预设</label>
+							<select id="comfyui-ai-prompt-rule-preset-select"><option value="">选择规则预设...</option></select>
+						</div>
+						<div class="comfy-inline-actions">
+							<button id="comfyui-ai-prompt-rule-preset-load" class="comfy-button" title="加载选中的绘图分析规则">加载</button>
+							<button id="comfyui-ai-prompt-rule-preset-save" class="comfy-button" title="保存当前绘图分析规则">保存</button>
+							<button id="comfyui-ai-prompt-rule-preset-delete" class="comfy-button error" title="删除选中的绘图分析规则">删除</button>
+						</div>
+					</div>
+					<div class="comfy-hint">适合分别保存 Danbooru 标签规则、FLUX 自然语言规则，切换模型类型时直接加载对应规则。</div>
+				</fieldset>
+				<div class="comfy-prompt-area">
+					<label for="comfyui-ai-prompt-instruction">绘图分析规则</label>
+					<textarea id="comfyui-ai-prompt-instruction" class="comfy-ai-prompt-instruction" placeholder="留空时使用插件内置规则"></textarea>
+				</div>
+			</div>
 			<div id="tab-workflows" class="tab-content comfyui-settings">
 				<div class="edit-mode-toolbar" id="edit-mode-toolbar">
 					<div class="toolbar-title">编辑模式</div>
@@ -443,6 +525,19 @@ export function getPanelHtml({ panelId, modes }) {
                         <button type="button" id="comfyui-lora-export-selection" class="comfy-button">导出配置</button>
                         <button type="button" id="comfyui-lora-import-selection" class="comfy-button">导入配置</button>
                     </div>
+                    <div class="lora-options-row">
+                        <label><input id="comfyui-lora-auto-append-triggers" type="checkbox" checked> 自动追加触发词</label>
+                        <label><input id="comfyui-lora-strict-injection" type="checkbox" checked> 严格注入自检</label>
+                        <label><input id="comfyui-lora-save-debug-workflow" type="checkbox" checked> 保存最终工作流</label>
+                        <label for="comfyui-lora-injection-mode">注入方式</label>
+                        <select id="comfyui-lora-injection-mode" title="MODEL-only更稳定；MODEL+CLIP适合明确需要文本编码器权重的LoRA">
+                            <option value="model_only">仅 MODEL</option>
+                            <option value="model_clip">MODEL + CLIP</option>
+                            <option value="auto">自动</option>
+                        </select>
+                        <button type="button" id="comfyui-lora-copy-last-workflow" class="comfy-button">复制最终工作流</button>
+                        <button type="button" id="comfyui-lora-export-last-workflow" class="comfy-button">导出最终工作流</button>
+                    </div>
                     <div class="lora-list" id="comfyui-lora-list">
                         <!-- ComfyUI LoRA列表将在这里动态生成 -->
                     </div>
@@ -496,6 +591,28 @@ export function getPanelHtml({ panelId, modes }) {
 	<div class="modal-actions">
 		<button id="prompt-preset-save-cancel" class="comfy-button error">取消</button>
 		<button id="prompt-preset-save-confirm" class="comfy-button success">保存</button>
+	</div>
+</div>
+<!-- 保存绘图分析规则预设模态框 -->
+<div id="ai-prompt-rule-preset-save-modal" class="workflow-save-modal">
+	<h3>保存绘图分析规则</h3>
+	<label for="ai-prompt-rule-preset-name-input">规则预设名称</label>
+	<input type="text" id="ai-prompt-rule-preset-name-input" placeholder="例如 FLUX 自然语言 / Danbooru 标签...">
+	<div id="ai-prompt-rule-preset-overwrite-warning" class="overwrite-warning" style="display: none;">  该名称的规则预设已存在，保存将覆盖现有预设</div>
+	<div class="modal-actions">
+		<button id="ai-prompt-rule-preset-save-cancel" class="comfy-button error">取消</button>
+		<button id="ai-prompt-rule-preset-save-confirm" class="comfy-button success">保存</button>
+	</div>
+</div>
+<!-- 保存 AI/LLM API Key 模态框 -->
+<div id="ai-prompt-api-key-save-modal" class="workflow-save-modal">
+	<h3>保存 API Key</h3>
+	<label for="ai-prompt-api-key-name-input">Key 名称</label>
+	<input type="text" id="ai-prompt-api-key-name-input" placeholder="例如 OpenAI 主号 / 本地代理 / 备用渠道...">
+	<div id="ai-prompt-api-key-overwrite-warning" class="overwrite-warning" style="display: none;">  该名称的 API Key 已存在，保存将覆盖现有 Key</div>
+	<div class="modal-actions">
+		<button id="ai-prompt-api-key-save-cancel" class="comfy-button error">取消</button>
+		<button id="ai-prompt-api-key-save-confirm" class="comfy-button success">保存</button>
 	</div>
 </div>
 <!-- LoRA预设保存模态框 -->

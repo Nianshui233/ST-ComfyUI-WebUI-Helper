@@ -12,13 +12,19 @@ SillyTavern/public/scripts/extensions/third-party/ST-ComfyUI-WebUI-Helper
 
 - ComfyUI and WebUI connection modes.
 - Manual connection only, so SillyTavern does not poll ComfyUI/WebUI while unused.
-- Manual current-chat scan for generation markers.
+- AI-first RP image generation: assistant messages get `AI生图` / `AI提示词` actions that use SillyTavern quiet LLM generation to analyze recent context, cache an editable English image prompt on the message, hide that prompt behind an edit-on-demand summary, and then send it through ComfyUI/WebUI without polluting chat text.
+- Optional OpenAI-compatible LLM endpoint for AI prompt analysis in the `AI/LLM管理` tab; SillyTavern's current LLM remains the default, with optional automatic or manual `/models` detection.
+- `AI/LLM管理` supports reusable drawing-analysis rule presets and a local self-named multi-key API Key list; API keys are intentionally excluded from settings export.
+- Chat image actions show clear analyzing/generating/success/failure states while disabling duplicate clicks during long operations.
+- Optional automatic AI prompt analysis or automatic AI prompt + image generation after assistant replies stabilize.
+- Legacy generation-marker scanning remains available as a compatibility path.
 - ComfyUI API-format workflow validation.
 - Full plugin settings export/import.
 - Workflow JSON formatting, copying, and placeholder insertion helpers.
 - Workflow JSON minify and analysis helpers for node counts, placeholders, LoRA readiness, and common warnings.
-- Workflow, prompt preset, LoRA, image cache, and img2img panel controls.
+- Workflow, prompt preset, AI drawing-rule preset, LoRA, image cache, and img2img panel controls, with guarded preset overwrite/load behavior.
 - ComfyUI LoRA bulk tools: filtered multi-select/toggle, shared model/CLIP weight apply, enable/disable all, injection order controls, and copy/export/import selections.
+- ComfyUI LoRA injection tracing: targets the sampler's actual MODEL path, defaults to stable MODEL-only injection when available, can switch to MODEL+CLIP, supports per-LoRA trigger words, strict injection checks, and final workflow debug export.
 - SillyTavern `/proxy` based request compatibility for cross-origin API calls.
 - Optional direct-connection mode that bypasses the SillyTavern proxy (requires CORS enabled on ComfyUI/WebUI) to avoid backend log spam.
 - WebSocket-based ComfyUI result retrieval, with HTTP polling and preview frames as fallbacks.

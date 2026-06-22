@@ -1,4 +1,6 @@
 import { GM_addStyle, GM_getValue, GM_setValue, GM_xmlhttpRequest } from './lib/tampermonkey-compat.js';
+import { generateQuietPrompt, saveChatConditional } from '../../../../script.js';
+import { getContext } from '../../../extensions.js';
 import { createConnectionMonitor } from './features/connection-session.js';
 import { createManualScanController } from './features/manual-scan.js';
 import { validateComfyWorkflow, showWorkflowValidationResult as showWorkflowValidationToast } from './features/workflow-validation.js';
@@ -504,12 +506,17 @@ let initialized = false;
     const STORAGE_KEY_WORKFLOWS = 'comfyui_saved_workflows';
     const STORAGE_KEY_MODE = 'generation_mode';
     const STORAGE_KEY_PROMPT_PRESETS = 'comfyui_prompt_presets';
+    const STORAGE_KEY_AI_PROMPT_RULE_PRESETS = 'comfyui_ai_prompt_rule_presets';
+    const STORAGE_KEY_AI_PROMPT_API_KEYS = 'comfyui_ai_prompt_api_keys';
     const STORAGE_KEY_COMFYUI_LORA_PRESETS = 'comfyui_lora_presets';
+    const STORAGE_KEY_LAST_COMFYUI_WORKFLOW = 'comfyui_last_submitted_workflow';
+    const STORAGE_KEY_LAST_LORA_REPORT = 'comfyui_last_lora_injection_report';
     const SETTINGS_EXPORT_VERSION = 1;
     const EXPORTABLE_STORAGE_KEYS = [
         STORAGE_KEY_MODE,
         STORAGE_KEY_WORKFLOWS,
         STORAGE_KEY_PROMPT_PRESETS,
+        STORAGE_KEY_AI_PROMPT_RULE_PRESETS,
         STORAGE_KEY_COMFYUI_LORA_PRESETS,
         'comfyui_url',
         'webui_url',
@@ -551,6 +558,23 @@ let initialized = false;
         'comfyui_direct_connection',
         'selected_embeddings',
         'comfyui_selected_loras',
+        'comfyui_lora_auto_append_triggers',
+        'comfyui_lora_strict_injection',
+        'comfyui_lora_save_debug_workflow',
+        'comfyui_lora_injection_mode',
+        'comfyui_ai_prompt_enabled',
+        'comfyui_ai_prompt_show_buttons',
+        'comfyui_ai_prompt_auto',
+        'comfyui_ai_prompt_auto_generate_image',
+        'comfyui_ai_prompt_context_messages',
+        'comfyui_ai_prompt_response_length',
+        'comfyui_ai_prompt_instruction',
+        'comfyui_ai_prompt_provider',
+        'comfyui_ai_prompt_api_url',
+        'comfyui_ai_prompt_api_model',
+        'comfyui_ai_prompt_auto_detect_models',
+        'comfyui_ai_prompt_api_temperature',
+        'comfyui_ai_prompt_api_timeout',
         'comfyui_panel_position',
     ];
     let observerDebounceTimer = null;
@@ -564,6 +588,26 @@ let initialized = false;
         COMFYUI: 'comfyui',
         WEBUI: 'webui'
     };
+
+    const DEFAULT_AI_PROMPT_INSTRUCTION = `你是 SillyTavern RP 场景的绘图提示词提取器，只负责根据最近聊天内容生成一段适合 FLUX/SD 的英文绘图提示词。
+
+硬规则：
+1. 只描绘本轮回复或最近上下文中已经呈现的可见静态画面，不补充剧情外的新角色、道具、伤痕、服装、环境或特效。
+2. 输出必须是英文自然语言句子，禁止 Markdown、项目符号、编号、表格、键值对、逗号标签串和解释。
+3. 不要使用 masterpiece, best quality, ultra-detailed, 8k, HDR, perfect anatomy 等空泛质量词。
+4. 不写声音、气味、触觉、心理活动、角色动机、世界观解释、镜头运动或时间流逝。
+5. 若画面内必须出现文字，用 text "..." 描述载体、位置、颜色、排版关系和文字角色；除 text 引号内必要原文外，其余仍用英文。
+6. 常规人物/风景控制在 70-180 英文词；复杂信息图或多宫格可到 180-280 英文词。
+
+输出结构：
+第一行必须包含景别和视角，例如 close-up eye-level / medium shot three-quarter view / wide shot high-angle。
+主体按视觉重要性描述，最多 3 个主体；每个主体单独成句，写清姿态、位置、年龄观感、外貌、表情、发型、服装材质与细节、手部/道具、受光。
+最后一句必须描述环境，按场所、前景、中景、背景、天气/空气状态、主光源、色温、反射、阴影组织。
+
+风格自适应：
+从聊天语境推断画风并写成可见媒介特征。现代日常偏 realistic lens rendering, natural light, candid phone-photo feel；高张力场面偏 cinematic color contrast, directional key light, rim light；动漫设定偏 clean line art, clear color blocks, simplified shadows；古典/奇幻偏 thick paint, canvas texture, visible brushstrokes；东方水墨偏 ink density, blank space, feathered edges。
+
+只输出最终绘图提示词本身，不要输出 [IMG_GEN] 标签，不要解释。`;
 
     const DEFAULT_SETTINGS = {
         mode: MODES.COMFYUI,
@@ -602,6 +646,24 @@ let initialized = false;
         enableComparison: true,
         hideButtons: false,
         directConnection: false,
+        loraAutoAppendTriggers: true,
+        loraStrictInjection: true,
+        loraSaveDebugWorkflow: true,
+        loraInjectionMode: 'model_only',
+        aiPromptEnabled: true,
+        aiPromptShowButtons: true,
+        aiPromptAuto: false,
+        aiPromptAutoGenerateImage: false,
+        aiPromptContextMessages: 6,
+        aiPromptResponseLength: 350,
+        aiPromptInstruction: DEFAULT_AI_PROMPT_INSTRUCTION,
+        aiPromptProvider: 'sillytavern',
+        aiPromptApiUrl: '',
+        aiPromptApiKey: '',
+        aiPromptApiModel: '',
+        aiPromptAutoDetectModels: true,
+        aiPromptApiTemperature: 0.4,
+        aiPromptApiTimeout: 60000,
     };
 
     // Shared runtime state
@@ -611,6 +673,7 @@ let initialized = false;
     let availableLoras = [];
     let availableEmbeddings = [];
     let availableComfyUILoras = [];
+    const presetManagers = {};
     let helperActivated = false;
     const manualScan = createManualScanController();
     const streamingState = {
@@ -1070,6 +1133,7 @@ let initialized = false;
      * @param {function(): object} config.getCurrentData - 获取当前要保存的数据的函数
      * @param {function(object): Promise<void>} config.applyPreset - 应用一个预设的函数
      * @param {function(): boolean} [config.canSave=() => true] - 检查是否可以保存的函数
+     * @param {function(object, string): boolean} [config.shouldConfirmLoad] - 加载前是否需要用户确认
      */
     function createPresetManager(config) {
         const select = document.getElementById(config.selectElementId);
@@ -1082,15 +1146,17 @@ let initialized = false;
         const confirmBtn = document.getElementById(config.saveConfirmButtonId);
         const cancelBtn = document.getElementById(config.saveCancelButtonId);
 
-        async function loadPresets() {
+        async function loadPresets(preferredValue = select.value) {
             const presets = await GM_getValue(config.storageKey, {});
             select.innerHTML = `<option value="">选择${config.presetType}预设...</option>`;
-            Object.keys(presets).sort().forEach(name => {
+            const names = Object.keys(presets).sort();
+            names.forEach(name => {
                 const option = document.createElement('option');
                 option.value = name;
                 option.textContent = name;
                 select.appendChild(option);
             });
+            select.value = names.includes(preferredValue) ? preferredValue : '';
         }
 
         async function savePreset(presetName) {
@@ -1098,7 +1164,7 @@ let initialized = false;
             const presets = await GM_getValue(config.storageKey, {});
             presets[presetName] = { ...data, timestamp: Date.now() };
             await GM_setValue(config.storageKey, presets);
-            await loadPresets();
+            await loadPresets(presetName);
             showToast('success', `${config.presetType}预设 "${presetName}" 已保存`);
         }
 
@@ -1110,6 +1176,10 @@ let initialized = false;
             const presets = await GM_getValue(config.storageKey, {});
             const preset = presets[select.value];
             if (preset) {
+                if (config.shouldConfirmLoad && config.shouldConfirmLoad(preset, select.value)) {
+                    const ok = confirm(`当前${config.presetType}内容将被覆盖，确定要加载 "${select.value}" 吗？`);
+                    if (!ok) return;
+                }
                 await config.applyPreset(preset);
                 showToast('success', `已加载${config.presetType}预设 "${select.value}"`);
             }
@@ -1134,10 +1204,13 @@ let initialized = false;
                 showToast('warning', `没有可保存的${config.presetType}配置`);
                 return;
             }
-            nameInput.value = '';
-            warning.style.display = 'none';
+            nameInput.value = select.value || '';
+            warning.style.display = select.value ? 'block' : 'none';
             modal.style.display = 'block';
-            setTimeout(() => nameInput.focus(), 100);
+            setTimeout(() => {
+                nameInput.focus();
+                nameInput.select();
+            }, 100);
         }
 
         // Event Listeners
@@ -1185,6 +1258,18 @@ let initialized = false;
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+    }
+
+    function decodeHTML(str) {
+        const textarea = document.createElement('textarea');
+        textarea.innerHTML = String(str || '');
+        return textarea.value;
+    }
+
+    function stripHtmlToText(value) {
+        const div = document.createElement('div');
+        div.innerHTML = String(value || '');
+        return (div.textContent || div.innerText || '').trim();
     }
 
     /**
@@ -1882,13 +1967,16 @@ let initialized = false;
         initTabListeners();
         initWorkflowListeners(buttons, inputs);
         initApiListeners(buttons, inputs);
-        initPresetManagers();
+        initPresetManagers(inputs);
         initCacheListeners(buttons);
         initSettingsBackupListeners(buttons, inputs);
 
         // 加载设置
         await loadCurrentMode();
         await loadSettings(inputs);
+        panel.updateAiPromptProviderUI?.();
+        populateAiPromptModelSelect([], inputs.aiPromptApiModel?.value || '');
+        panel.scheduleAiPromptModelDetection?.();
         await syncComfyUILoraSelectionStorage();
         moveAdvancedSectionsToTab('generation');
         updateComfyUISelectedLorasDisplay();
@@ -1908,9 +1996,64 @@ let initialized = false;
             document.getElementById('hires-settings').style.display = inputs.webuiEnableHires.checked ? 'grid' : 'none';
         });
 
+        let aiPromptModelDetectTimer = null;
+        function scheduleAiPromptModelDetection() {
+            clearTimeout(aiPromptModelDetectTimer);
+            if (inputs.aiPromptProvider?.value !== 'openai_compatible') return;
+            if (!inputs.aiPromptAutoDetectModels?.checked) return;
+            if (!String(inputs.aiPromptApiUrl?.value || '').trim()) return;
+            aiPromptModelDetectTimer = setTimeout(() => {
+                saveSettings(inputs)
+                    .then(() => detectAiPromptModels({ silent: true }))
+                    .catch(error => {
+                        console.warn('[AI Gen] 自动检测 AI/LLM 模型失败:', error.message || error);
+                    });
+            }, 900);
+        }
+        panel.scheduleAiPromptModelDetection = scheduleAiPromptModelDetection;
+
+        function updateAiPromptProviderUI() {
+            const useExternal = inputs.aiPromptProvider?.value === 'openai_compatible';
+            [
+                inputs.aiPromptApiUrl,
+                inputs.aiPromptApiKey,
+                inputs.aiPromptApiKeySelect,
+                inputs.aiPromptApiModel,
+                inputs.aiPromptApiModelSelect,
+                inputs.aiPromptAutoDetectModels,
+                inputs.aiPromptApiTemperature,
+                inputs.aiPromptApiTimeout,
+                buttons.aiPromptDetectModels,
+                buttons.aiPromptTestApi,
+                buttons.aiPromptApiKeyLoad,
+                buttons.aiPromptApiKeySave,
+                buttons.aiPromptApiKeyDelete,
+            ].forEach(input => {
+                if (input) input.disabled = !useExternal;
+            });
+            document.getElementById('comfyui-ai-prompt-api-settings')?.classList.toggle('is-disabled', !useExternal);
+        }
+        panel.updateAiPromptProviderUI = updateAiPromptProviderUI;
+        inputs.aiPromptProvider?.addEventListener('change', () => {
+            updateAiPromptProviderUI();
+            scheduleAiPromptModelDetection();
+        });
+        inputs.aiPromptApiModelSelect?.addEventListener('change', () => {
+            if (!inputs.aiPromptApiModelSelect.value || !inputs.aiPromptApiModel) return;
+            inputs.aiPromptApiModel.value = inputs.aiPromptApiModelSelect.value;
+            inputs.aiPromptApiModel.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        [inputs.aiPromptApiUrl, inputs.aiPromptApiKey, inputs.aiPromptAutoDetectModels].forEach(input => {
+            input?.addEventListener(input?.type === 'checkbox' ? 'change' : 'input', scheduleAiPromptModelDetection);
+        });
+        updateAiPromptProviderUI();
+
         // [Phase 1.2] 自动保存设置（debounced）
         let saveDebounceTimer = null;
         Object.values(inputs).forEach(input => {
+            if (!input?.addEventListener) return;
+            if (input === inputs.aiPromptApiModelSelect) return;
+            if (input === inputs.aiPromptApiKeySelect) return;
             const eventType = (input.tagName === 'SELECT' || input.type === 'checkbox') ? 'change' : 'input';
             input.addEventListener(eventType, () => {
                 if (input === inputs.url) buttons.test.className = 'comfy-button';
@@ -2131,7 +2274,7 @@ let initialized = false;
             const img = document.createElement('img');
             img.src = imageUrl;
             img.alt = 'Generated by AI';
-            img.style.width = '100%';
+            img.style.width = displayWidth > 0 ? 'auto' : '100%';
             img.style.maxWidth = displayWidth > 0 ? `${displayWidth}px` : '100%';
             img.style.height = 'auto';
             img.style.borderRadius = '4px';
@@ -2168,6 +2311,9 @@ let initialized = false;
                     updateComfyUISelectedLorasDisplay();
                 }
                 if (tabId === 'cache') loadImageCache();
+                if (tabId === 'ai-prompt') {
+                    document.getElementById(PANEL_ID)?.updateAiPromptProviderUI?.();
+                }
 
                 // [修复] 切换到工作流标签时，强制刷新列表
                 if (tabId === 'workflows') {
@@ -2350,6 +2496,35 @@ let initialized = false;
         buttons.webuiRefreshLoras.addEventListener('click', handleApiAction(inputs.webuiUrl, url => fetchAndPopulateWebUILoras(url, false), '请先输入WebUI URL'));
         buttons.webuiRefreshEmbeddings.addEventListener('click', handleApiAction(inputs.webuiUrl, url => fetchAndPopulateWebUIEmbeddings(url, false), '请先输入WebUI URL'));
         buttons.comfyuiRefreshLorasList.addEventListener('click', handleApiAction(inputs.url, url => fetchAndPopulateComfyUILoras(url, false), '请先输入ComfyUI URL'));
+        buttons.aiPromptDetectModels?.addEventListener('click', async () => {
+            const originalHtml = buttons.aiPromptDetectModels.innerHTML;
+            buttons.aiPromptDetectModels.disabled = true;
+            buttons.aiPromptDetectModels.textContent = '检测中...';
+            try {
+                await saveSettings(inputs);
+                await detectAiPromptModels({ silent: false });
+            } catch (error) {
+                console.error('[AI Gen] 检测 AI/LLM 模型失败:', error);
+                showToast('error', error.message || String(error));
+            } finally {
+                buttons.aiPromptDetectModels.disabled = false;
+                buttons.aiPromptDetectModels.innerHTML = originalHtml;
+            }
+        });
+        buttons.aiPromptTestApi?.addEventListener('click', async () => {
+            const originalText = buttons.aiPromptTestApi.textContent;
+            buttons.aiPromptTestApi.disabled = true;
+            buttons.aiPromptTestApi.textContent = '测试中...';
+            try {
+                await testAiPromptOpenAICompatibleApi();
+            } catch (error) {
+                console.error('[AI Gen] AI 绘图 API 测试失败:', error);
+                showToast('error', error.message || String(error));
+            } finally {
+                buttons.aiPromptTestApi.disabled = false;
+                buttons.aiPromptTestApi.textContent = originalText;
+            }
+        });
 
         if (buttons.loraAdd) {
             buttons.loraAdd.addEventListener('click', () => {
@@ -2386,6 +2561,8 @@ let initialized = false;
         buttons.comfyuiLoraCopySelection?.addEventListener('click', copyComfyUILoraSelection);
         buttons.comfyuiLoraExportSelection?.addEventListener('click', exportComfyUILoraSelection);
         buttons.comfyuiLoraImportSelection?.addEventListener('click', importComfyUILoraSelection);
+        buttons.comfyuiLoraCopyLastWorkflow?.addEventListener('click', copyLastSubmittedComfyUIWorkflow);
+        buttons.comfyuiLoraExportLastWorkflow?.addEventListener('click', exportLastSubmittedComfyUIWorkflow);
     }
 
     // [优化] 拆分 initPanelLogic
@@ -2410,7 +2587,7 @@ let initialized = false;
             const displayWidth = await GM_getValue('comfyui_display_width', DEFAULT_SETTINGS.displayWidth);
             const displayHeight = await GM_getValue('comfyui_display_height', DEFAULT_SETTINGS.displayHeight);
             document.querySelectorAll('.comfy-image-container img').forEach(img => {
-                img.style.width = '100%';
+                img.style.width = displayWidth > 0 ? 'auto' : '100%';
                 img.style.maxWidth = displayWidth > 0 ? `${displayWidth}px` : '100%';
                 img.style.maxHeight = displayHeight > 0 ? `${displayHeight}px` : 'none';
                 img.style.height = 'auto'; // 保持比例
@@ -2469,10 +2646,189 @@ let initialized = false;
         buttons.importSettings?.addEventListener('click', () => importAllSettings(inputs));
     }
 
+    function getPromptPresetDataFromInputs() {
+        return {
+            positive: document.getElementById('comfyui-positive-prompt')?.value || '',
+            negative: document.getElementById('comfyui-negative-prompt')?.value || '',
+        };
+    }
+
+    function isPromptPresetEmpty(data) {
+        return !String(data?.positive || '').trim() && !String(data?.negative || '').trim();
+    }
+
+    function normalizePromptPresetData(data) {
+        return {
+            positive: String(data?.positive || ''),
+            negative: String(data?.negative || ''),
+        };
+    }
+
+    function promptPresetDataEquals(a, b) {
+        const left = normalizePromptPresetData(a);
+        const right = normalizePromptPresetData(b);
+        return left.positive === right.positive && left.negative === right.negative;
+    }
+
+    function getAiPromptRulePresetDataFromInputs() {
+        return {
+            instruction: document.getElementById('comfyui-ai-prompt-instruction')?.value || '',
+        };
+    }
+
+    function normalizeAiPromptRulePresetData(data) {
+        return {
+            instruction: String(data?.instruction || ''),
+        };
+    }
+
+    function isAiPromptRulePresetEmpty(data) {
+        return !String(data?.instruction || '').trim();
+    }
+
+    function aiPromptRulePresetDataEquals(a, b) {
+        return normalizeAiPromptRulePresetData(a).instruction === normalizeAiPromptRulePresetData(b).instruction;
+    }
+
+    function maskApiKeyForDisplay(key) {
+        const text = String(key || '').trim();
+        if (!text) return '空 Key';
+        if (text.length <= 8) return `****${text.slice(-2)}`;
+        return `${text.slice(0, 3)}...${text.slice(-4)}`;
+    }
+
+    function createAiPromptApiKeyManager(inputs) {
+        const select = document.getElementById('comfyui-ai-prompt-api-key-select');
+        const loadBtn = document.getElementById('comfyui-ai-prompt-api-key-load');
+        const saveBtn = document.getElementById('comfyui-ai-prompt-api-key-save');
+        const deleteBtn = document.getElementById('comfyui-ai-prompt-api-key-delete');
+        const modal = document.getElementById('ai-prompt-api-key-save-modal');
+        const nameInput = document.getElementById('ai-prompt-api-key-name-input');
+        const warning = document.getElementById('ai-prompt-api-key-overwrite-warning');
+        const confirmBtn = document.getElementById('ai-prompt-api-key-save-confirm');
+        const cancelBtn = document.getElementById('ai-prompt-api-key-save-cancel');
+
+        if (!select || !loadBtn || !saveBtn || !deleteBtn || !modal || !nameInput || !warning || !confirmBtn || !cancelBtn) {
+            return { loadPresets: async () => {} };
+        }
+
+        async function loadPresets(preferredValue = select.value) {
+            const keys = await GM_getValue(STORAGE_KEY_AI_PROMPT_API_KEYS, {});
+            select.innerHTML = '<option value="">选择已保存的 Key...</option>';
+            const names = Object.keys(keys).sort();
+            names.forEach(name => {
+                const item = keys[name] || {};
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = `${name} (${maskApiKeyForDisplay(item.key)})`;
+                select.appendChild(option);
+            });
+            select.value = names.includes(preferredValue) ? preferredValue : '';
+        }
+
+        async function saveKey(name) {
+            const key = String(inputs.aiPromptApiKey?.value || '').trim();
+            if (!key) {
+                showToast('warning', '请先填写要保存的 API Key');
+                return;
+            }
+
+            const keys = await GM_getValue(STORAGE_KEY_AI_PROMPT_API_KEYS, {});
+            keys[name] = {
+                key,
+                timestamp: Date.now(),
+            };
+            await GM_setValue(STORAGE_KEY_AI_PROMPT_API_KEYS, keys);
+            await loadPresets(name);
+            showToast('success', `API Key "${name}" 已保存`);
+        }
+
+        async function loadSelected() {
+            if (!select.value) {
+                showToast('warning', '请先选择一个 API Key');
+                return;
+            }
+
+            const keys = await GM_getValue(STORAGE_KEY_AI_PROMPT_API_KEYS, {});
+            const item = keys[select.value];
+            if (!item) {
+                showToast('error', '选中的 API Key 不存在');
+                await loadPresets();
+                return;
+            }
+
+            if (inputs.aiPromptApiKey) {
+                inputs.aiPromptApiKey.value = String(item.key || '');
+                inputs.aiPromptApiKey.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            await saveSettings(inputs);
+            document.getElementById(PANEL_ID)?.scheduleAiPromptModelDetection?.();
+            showToast('success', `已套用 API Key "${select.value}"`);
+        }
+
+        async function deleteSelected() {
+            if (!select.value) {
+                showToast('warning', '请先选择一个 API Key');
+                return;
+            }
+
+            const name = select.value;
+            if (!confirm(`确定要删除 API Key "${name}" 吗？此操作不可撤销。`)) return;
+
+            const keys = await GM_getValue(STORAGE_KEY_AI_PROMPT_API_KEYS, {});
+            delete keys[name];
+            await GM_setValue(STORAGE_KEY_AI_PROMPT_API_KEYS, keys);
+            await loadPresets();
+            showToast('success', `API Key "${name}" 已删除`);
+        }
+
+        async function showSaveModal() {
+            const key = String(inputs.aiPromptApiKey?.value || '').trim();
+            if (!key) {
+                showToast('warning', '请先填写要保存的 API Key');
+                return;
+            }
+
+            nameInput.value = select.value || '';
+            const keys = await GM_getValue(STORAGE_KEY_AI_PROMPT_API_KEYS, {});
+            warning.style.display = nameInput.value.trim() && keys[nameInput.value.trim()] ? 'block' : 'none';
+            modal.style.display = 'block';
+            setTimeout(() => {
+                nameInput.focus();
+                nameInput.select();
+            }, 100);
+        }
+
+        loadBtn.addEventListener('click', loadSelected);
+        saveBtn.addEventListener('click', showSaveModal);
+        deleteBtn.addEventListener('click', deleteSelected);
+
+        nameInput.addEventListener('input', async () => {
+            const keys = await GM_getValue(STORAGE_KEY_AI_PROMPT_API_KEYS, {});
+            warning.style.display = nameInput.value.trim() && keys[nameInput.value.trim()] ? 'block' : 'none';
+        });
+
+        confirmBtn.addEventListener('click', async () => {
+            const name = nameInput.value.trim();
+            if (!name) {
+                showToast('error', '请输入 API Key 名称');
+                return;
+            }
+            await saveKey(name);
+            modal.style.display = 'none';
+        });
+
+        cancelBtn.addEventListener('click', () => modal.style.display = 'none');
+
+        loadPresets();
+        return { loadPresets };
+    }
+
     // [优化] 拆分 initPanelLogic
-    function initPresetManagers() {
+    function initPresetManagers(inputs = {}) {
         // 提示词预设管理器
-        createPresetManager({
+        presetManagers.prompts = createPresetManager({
             storageKey: STORAGE_KEY_PROMPT_PRESETS,
             selectElementId: 'prompt-preset-select',
             loadButtonId: 'prompt-preset-load',
@@ -2484,23 +2840,61 @@ let initialized = false;
             saveConfirmButtonId: 'prompt-preset-save-confirm',
             saveCancelButtonId: 'prompt-preset-save-cancel',
             presetType: '提示词',
-            getCurrentData: () => ({
-                positive: document.getElementById('comfyui-positive-prompt').value,
-                negative: document.getElementById('comfyui-negative-prompt').value,
-            }),
+            getCurrentData: getPromptPresetDataFromInputs,
+            canSave: () => !isPromptPresetEmpty(getPromptPresetDataFromInputs()),
+            shouldConfirmLoad: (preset) => {
+                const current = getPromptPresetDataFromInputs();
+                if (isPromptPresetEmpty(current)) return false;
+                return !promptPresetDataEquals(current, preset);
+            },
             applyPreset: async (preset) => {
-                document.getElementById('comfyui-positive-prompt').value = preset.positive || '';
-                document.getElementById('comfyui-negative-prompt').value = preset.negative || '';
+                const positivePrompt = document.getElementById('comfyui-positive-prompt');
+                const negativePrompt = document.getElementById('comfyui-negative-prompt');
+                positivePrompt.value = preset.positive || '';
+                negativePrompt.value = preset.negative || '';
+                positivePrompt.dispatchEvent(new Event('input', { bubbles: true }));
+                negativePrompt.dispatchEvent(new Event('input', { bubbles: true }));
                 // 触发保存
                 await saveSettings({
-                    positivePrompt: document.getElementById('comfyui-positive-prompt'),
-                    negativePrompt: document.getElementById('comfyui-negative-prompt')
+                    positivePrompt,
+                    negativePrompt
                 });
             }
         });
 
+        // AI 绘图分析规则预设管理器
+        presetManagers.aiPromptRules = createPresetManager({
+            storageKey: STORAGE_KEY_AI_PROMPT_RULE_PRESETS,
+            selectElementId: 'comfyui-ai-prompt-rule-preset-select',
+            loadButtonId: 'comfyui-ai-prompt-rule-preset-load',
+            saveButtonId: 'comfyui-ai-prompt-rule-preset-save',
+            deleteButtonId: 'comfyui-ai-prompt-rule-preset-delete',
+            modalId: 'ai-prompt-rule-preset-save-modal',
+            nameInputId: 'ai-prompt-rule-preset-name-input',
+            overwriteWarningId: 'ai-prompt-rule-preset-overwrite-warning',
+            saveConfirmButtonId: 'ai-prompt-rule-preset-save-confirm',
+            saveCancelButtonId: 'ai-prompt-rule-preset-save-cancel',
+            presetType: '绘图分析规则',
+            getCurrentData: getAiPromptRulePresetDataFromInputs,
+            canSave: () => !isAiPromptRulePresetEmpty(getAiPromptRulePresetDataFromInputs()),
+            shouldConfirmLoad: (preset) => {
+                const current = getAiPromptRulePresetDataFromInputs();
+                if (isAiPromptRulePresetEmpty(current)) return false;
+                return !aiPromptRulePresetDataEquals(current, preset);
+            },
+            applyPreset: async (preset) => {
+                const aiPromptInstruction = document.getElementById('comfyui-ai-prompt-instruction');
+                if (!aiPromptInstruction) return;
+                aiPromptInstruction.value = String(preset?.instruction || '');
+                aiPromptInstruction.dispatchEvent(new Event('input', { bubbles: true }));
+                await saveSettings({ aiPromptInstruction });
+            }
+        });
+
+        presetManagers.aiPromptApiKeys = createAiPromptApiKeyManager(inputs);
+
         // ComfyUI LoRA 预设管理器
-        createPresetManager({
+        presetManagers.comfyLoras = createPresetManager({
             storageKey: STORAGE_KEY_COMFYUI_LORA_PRESETS,
             selectElementId: 'comfyui-lora-preset-select',
             loadButtonId: 'comfyui-lora-preset-load',
@@ -2684,7 +3078,7 @@ let initialized = false;
         }
     }
 
-    function analyzeCurrentWorkflow(workflowInput) {
+    async function analyzeCurrentWorkflow(workflowInput) {
         if (!workflowInput.value.trim()) {
             showToast('error', '工作流内容为空');
             return;
@@ -2694,6 +3088,15 @@ let initialized = false;
             const workflowText = workflowInput.value;
             const workflow = JSON.parse(workflowText);
             const analysis = buildWorkflowAnalysis(workflow, workflowText);
+            const lastReport = await GM_getValue(STORAGE_KEY_LAST_LORA_REPORT, null);
+            if (lastReport?.loraCount) {
+                analysis.lines.push(`上次LoRA注入: ${lastReport.ok ? '通过' : '失败'} / ${lastReport.strategy} / ${lastReport.effectiveInjectionMode || lastReport.injectionMode || 'unknown'} / ${lastReport.insertedNodeIds?.length || 0} 节点 / ${lastReport.chainCount || 0} 链`);
+                if (lastReport.loaderTypes?.length) {
+                    analysis.lines.push(`上次LoRA节点: ${lastReport.loaderTypes.join(', ')}`);
+                }
+                analysis.warnings.push(...(lastReport.warnings || []));
+                analysis.warnings.push(...(lastReport.errors || []).map(error => `上次注入错误: ${error}`));
+            }
             renderWorkflowAnalysis(analysis);
             showWorkflowValidationResult(validateComfyWorkflow(workflowText));
         } catch (error) {
@@ -2738,6 +3141,7 @@ let initialized = false;
 
         const selectedLoras = getCurrentComfyUISelectedLoras();
         const enabledLoras = selectedLoras.filter(lora => lora.enabled !== false);
+        const loraTriggerPrompt = getComfyUILoraTriggerPrompt(enabledLoras);
         const warnings = [];
 
         if (missingRecommended.length > 0) {
@@ -2748,6 +3152,9 @@ let initialized = false;
         }
         if (enabledLoras.length > 0 && modelLoaderNodes.length === 0) {
             warnings.push('当前已启用 LoRA，但工作流里未明显识别到模型加载节点，智能注入可能失败');
+        }
+        if (enabledLoras.length > 0 && !loraTriggerPrompt) {
+            warnings.push('当前已启用 LoRA，但没有配置自动追加触发词；部分LoRA可能视觉上不明显');
         }
         if (outputNodes.length === 0) {
             warnings.push('缺少 SaveImage/PreviewImage 输出节点');
@@ -2768,6 +3175,7 @@ let initialized = false;
                 `模型加载节点: ${modelLoaderNodes.length ? modelLoaderNodes.join(', ') : '未明显识别'}`,
                 `工作流内 LoRA 节点: ${loraNodes.length ? loraNodes.join(', ') : '无'}`,
                 `当前已选 LoRA: ${enabledLoras.length}/${selectedLoras.length} 启用`,
+                `LoRA触发词: ${loraTriggerPrompt || '未配置'}`,
                 `已出现占位符: ${placeholders.length ? placeholders.join(', ') : '无'}`,
                 `主要节点类型: ${topClasses.length ? topClasses.join('；') : '无'}`,
             ],
@@ -3663,12 +4071,17 @@ let initialized = false;
         if (!item || typeof item !== 'object') return null;
         const name = String(item.name || '').trim();
         if (!name) return null;
+        const triggerWords = Array.isArray(item.triggerWords)
+            ? item.triggerWords.join(', ')
+            : String(item.triggerWords || item.triggers || '').trim();
 
         const fallbackWeight = normalizeNumber(item.weight, 1);
         return {
             name,
             modelWeight: formatDecimal(item.modelWeight, fallbackWeight),
             clipWeight: formatDecimal(item.clipWeight, fallbackWeight),
+            triggerWords,
+            autoAppendTriggers: item.autoAppendTriggers !== false,
             enabled: item.enabled !== false,
         };
     }
@@ -3688,25 +4101,95 @@ let initialized = false;
         return normalized;
     }
 
-    function findComfyUILoraLoader(objectInfo) {
-        const loraNodeTypes = ['LoraLoader', 'LoRALoader', 'Lora Loader', 'LoRA_Loader_Z'];
+    function inputAcceptsComfyType(inputDef, type) {
+        if (!Array.isArray(inputDef)) return false;
+        if (inputDef[0] === type) return true;
+        if (Array.isArray(inputDef[0]) && inputDef[0].includes(type)) return true;
+        return false;
+    }
 
-        for (const nodeType of loraNodeTypes) {
-            const nodeInfo = objectInfo?.[nodeType];
-            const required = nodeInfo?.input?.required || {};
-            const output = nodeInfo?.output || [];
-            if (
-                required.lora_name?.[0] &&
-                required.model &&
-                required.clip &&
-                output.includes('MODEL') &&
-                output.includes('CLIP')
-            ) {
-                return { type: nodeType, nodeInfo };
-            }
+    function findInputKey(required, preferredKeys, acceptedType = null) {
+        for (const key of preferredKeys) {
+            if (required[key] && (!acceptedType || inputAcceptsComfyType(required[key], acceptedType))) return key;
         }
 
-        return null;
+        return Object.keys(required).find(key => {
+            const lower = key.toLowerCase();
+            const matchesName = preferredKeys.some(preferred => lower.includes(preferred.toLowerCase()));
+            return matchesName && (!acceptedType || inputAcceptsComfyType(required[key], acceptedType));
+        }) || null;
+    }
+
+    function findNumericInputKey(required, preferredKeys) {
+        for (const key of preferredKeys) {
+            if (required[key]) return key;
+        }
+
+        return Object.keys(required).find(key => {
+            const lower = key.toLowerCase();
+            return preferredKeys.some(preferred => lower.includes(preferred.toLowerCase()));
+        }) || null;
+    }
+
+    function getComfyUILoraLoaders(objectInfo) {
+        const preferredNodeTypes = [
+            'LoraLoader',
+            'LoraLoaderModelOnly',
+            'LoRALoader',
+            'Lora Loader',
+            'LoRA_Loader_Z',
+            'LoraLoaderBypass',
+            'LoraLoaderBypassModelOnly',
+        ];
+        const nodeEntries = Object.entries(objectInfo || {}).sort(([a], [b]) => {
+            const ai = preferredNodeTypes.indexOf(a);
+            const bi = preferredNodeTypes.indexOf(b);
+            if (ai !== -1 || bi !== -1) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+            return a.localeCompare(b);
+        });
+
+        const candidates = [];
+
+        for (const [nodeType, nodeInfo] of nodeEntries) {
+            const required = nodeInfo?.input?.required || {};
+            const output = nodeInfo?.output || [];
+            const nodeName = nodeType.toLowerCase();
+            const loraNameInput = findInputKey(required, ['lora_name', 'loraname', 'lora']);
+            const modelInput = findInputKey(required, ['model'], 'MODEL');
+            const clipInput = findInputKey(required, ['clip'], 'CLIP');
+            const modelOutputIndex = output.indexOf('MODEL');
+            const clipOutputIndex = output.indexOf('CLIP');
+
+            if (!loraNameInput || !modelInput || modelOutputIndex < 0) continue;
+            if (!nodeName.includes('lora') && !String(loraNameInput).toLowerCase().includes('lora')) continue;
+
+            candidates.push({
+                type: nodeType,
+                nodeInfo,
+                inputs: {
+                    loraName: loraNameInput,
+                    model: modelInput,
+                    clip: clipInput,
+                    modelStrength: findNumericInputKey(required, ['strength_model', 'model_strength', 'strength']),
+                    clipStrength: findNumericInputKey(required, ['strength_clip', 'clip_strength', 'strength']),
+                },
+                outputs: {
+                    model: modelOutputIndex,
+                    clip: clipOutputIndex,
+                },
+            });
+        }
+
+        return candidates;
+    }
+
+    function findComfyUILoraLoader(objectInfo, options = {}) {
+        const candidates = getComfyUILoraLoaders(objectInfo);
+        if (options.preferModelOnly) {
+            return candidates.find(loader => !loader.inputs.clip) || candidates[0] || null;
+        }
+
+        return candidates.find(loader => loader.inputs.clip && loader.outputs.clip >= 0) || candidates[0] || null;
     }
 
     function persistComfyUISelectedLoras(items) {
@@ -3768,8 +4251,9 @@ let initialized = false;
 
         try {
             const data = await getCachedObjectInfo(url);
-            const loraLoader = findComfyUILoraLoader(data);
-            const loras = loraLoader?.nodeInfo?.input?.required?.lora_name?.[0];
+            const loraLoader = getComfyUILoraLoaders(data)
+                .find(loader => Array.isArray(loader.nodeInfo?.input?.required?.[loader.inputs.loraName]?.[0]));
+            const loras = loraLoader?.nodeInfo?.input?.required?.[loraLoader.inputs.loraName]?.[0];
 
             if (!loras || loras.length === 0) {
                 loraListContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">未找到LoRA模型</div>';
@@ -3962,6 +4446,8 @@ let initialized = false;
                     name,
                     modelWeight: formatDecimal(modelWeight, 1),
                     clipWeight: formatDecimal(clipWeight, normalizeNumber(modelWeight, 1)),
+                    triggerWords: '',
+                    autoAppendTriggers: true,
                     enabled: true,
                 });
                 this.setAll(items);
@@ -3995,6 +4481,36 @@ let initialized = false;
         });
     }
     function setComfyUISelectedLoraEnabled(name, enabled) { comfyUILoraManager.update(name, { enabled }); }
+
+    function updateComfyUISelectedLoraTriggers(name, triggerWords, autoAppendTriggers) {
+        comfyUILoraManager.update(name, {
+            triggerWords: String(triggerWords || '').trim(),
+            autoAppendTriggers: autoAppendTriggers !== false,
+        });
+    }
+
+    function parseTriggerWords(triggerWords) {
+        return String(triggerWords || '')
+            .split(/[,，\n]/)
+            .map(word => word.trim())
+            .filter(Boolean);
+    }
+
+    function getComfyUILoraTriggerPrompt(loras) {
+        const words = [];
+        const seen = new Set();
+        loras
+            .filter(lora => lora.enabled !== false && lora.autoAppendTriggers !== false)
+            .flatMap(lora => parseTriggerWords(lora.triggerWords))
+            .forEach(word => {
+                const key = word.toLowerCase();
+                if (seen.has(key)) return;
+                seen.add(key);
+                words.push(word);
+            });
+
+        return words.join(', ');
+    }
 
     function getComfyUILoraBulkWeights() {
         const modelWeight = formatDecimal(document.getElementById('comfyui-lora-bulk-model')?.value, 1);
@@ -4094,19 +4610,7 @@ let initialized = false;
 
         const text = JSON.stringify(payload, null, 2);
         try {
-            if (navigator.clipboard?.writeText) {
-                await navigator.clipboard.writeText(text);
-            } else {
-                const textarea = document.createElement('textarea');
-                textarea.value = text;
-                textarea.style.position = 'fixed';
-                textarea.style.left = '-9999px';
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                textarea.remove();
-            }
-            showToast('success', `已复制 ${payload.loras.length} 个LoRA配置`);
+            await copyTextToClipboard(text, `已复制 ${payload.loras.length} 个LoRA配置`);
         } catch (error) {
             showToast('error', `复制LoRA配置失败: ${error.message}`);
         }
@@ -4157,6 +4661,50 @@ let initialized = false;
         input.click();
     }
 
+    async function copyTextToClipboard(text, successMessage) {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            textarea.remove();
+        }
+
+        showToast('success', successMessage);
+    }
+
+    async function getLastSubmittedComfyUIWorkflowPayload() {
+        const payload = await GM_getValue(STORAGE_KEY_LAST_COMFYUI_WORKFLOW, null);
+        if (!payload?.workflow) {
+            throw new Error('还没有保存过最终工作流，请先生成一次图片');
+        }
+        return payload;
+    }
+
+    async function copyLastSubmittedComfyUIWorkflow() {
+        try {
+            const payload = await getLastSubmittedComfyUIWorkflowPayload();
+            await copyTextToClipboard(JSON.stringify(payload.workflow, null, 2), '最终工作流 JSON 已复制');
+        } catch (error) {
+            showToast('error', `复制最终工作流失败: ${error.message}`);
+        }
+    }
+
+    async function exportLastSubmittedComfyUIWorkflow() {
+        try {
+            const payload = await getLastSubmittedComfyUIWorkflowPayload();
+            downloadJsonFile(payload, `comfyui_final_workflow_${new Date().toISOString().slice(0, 10)}.json`);
+            showToast('success', '最终工作流调试包已导出');
+        } catch (error) {
+            showToast('error', `导出最终工作流失败: ${error.message}`);
+        }
+    }
+
     function updateComfyUISelectedLorasDisplay() {
         const container = document.getElementById('comfyui-selected-loras-container');
         const count = document.getElementById('comfyui-selected-loras-count');
@@ -4175,6 +4723,9 @@ let initialized = false;
         items.forEach((item, index) => {
             const row = document.createElement('div');
             row.className = `selected-lora-row${item.enabled === false ? ' disabled' : ''}`;
+
+            const mainRow = document.createElement('div');
+            mainRow.className = 'selected-lora-main';
 
             const enabled = document.createElement('input');
             enabled.type = 'checkbox';
@@ -4223,6 +4774,28 @@ let initialized = false;
             removeBtn.className = 'comfy-button error selected-lora-remove';
             removeBtn.textContent = '删除';
 
+            const triggerRow = document.createElement('div');
+            triggerRow.className = 'selected-lora-triggers';
+
+            const triggerInput = document.createElement('input');
+            triggerInput.type = 'text';
+            triggerInput.className = 'selected-lora-trigger-input';
+            triggerInput.value = item.triggerWords || '';
+            triggerInput.placeholder = '触发词，多个用逗号分隔';
+            triggerInput.title = '生成时可自动追加到正向提示词';
+
+            const triggerToggleLabel = document.createElement('label');
+            triggerToggleLabel.className = 'selected-lora-trigger-toggle';
+
+            const triggerToggle = document.createElement('input');
+            triggerToggle.type = 'checkbox';
+            triggerToggle.checked = item.autoAppendTriggers !== false;
+
+            const triggerToggleText = document.createElement('span');
+            triggerToggleText.textContent = '自动追加';
+            triggerToggleLabel.append(triggerToggle, triggerToggleText);
+            triggerRow.append(triggerInput, triggerToggleLabel);
+
             enabled.addEventListener('change', () => {
                 setComfyUISelectedLoraEnabled(item.name, enabled.checked);
                 renderComfyUILoraList();
@@ -4243,13 +4816,20 @@ let initialized = false;
             upBtn.addEventListener('click', () => moveComfyUISelectedLora(item.name, -1));
             downBtn.addEventListener('click', () => moveComfyUISelectedLora(item.name, 1));
 
+            const updateTriggers = () => {
+                updateComfyUISelectedLoraTriggers(item.name, triggerInput.value, triggerToggle.checked);
+            };
+            triggerInput.addEventListener('input', updateTriggers);
+            triggerToggle.addEventListener('change', updateTriggers);
+
             removeBtn.addEventListener('click', () => {
                 removeComfyUISelectedLora(item.name);
                 renderComfyUILoraList();
                 updateComfyUISelectedLorasDisplay();
             });
 
-            row.append(enabled, name, modelWeight, clipWeight, orderControls, removeBtn);
+            mainRow.append(enabled, name, modelWeight, clipWeight, orderControls, removeBtn);
+            row.append(mainRow, triggerRow);
             container.appendChild(row);
         });
     }
@@ -4298,6 +4878,24 @@ let initialized = false;
             enableComparison: ['comfyui_enable_comparison', DEFAULT_SETTINGS.enableComparison],
             hideButtons: ['comfyui_hide_buttons', DEFAULT_SETTINGS.hideButtons],
             directConnection: ['comfyui_direct_connection', DEFAULT_SETTINGS.directConnection],
+            loraAutoAppendTriggers: ['comfyui_lora_auto_append_triggers', DEFAULT_SETTINGS.loraAutoAppendTriggers],
+            loraStrictInjection: ['comfyui_lora_strict_injection', DEFAULT_SETTINGS.loraStrictInjection],
+            loraSaveDebugWorkflow: ['comfyui_lora_save_debug_workflow', DEFAULT_SETTINGS.loraSaveDebugWorkflow],
+            loraInjectionMode: ['comfyui_lora_injection_mode', DEFAULT_SETTINGS.loraInjectionMode],
+            aiPromptEnabled: ['comfyui_ai_prompt_enabled', DEFAULT_SETTINGS.aiPromptEnabled],
+            aiPromptShowButtons: ['comfyui_ai_prompt_show_buttons', DEFAULT_SETTINGS.aiPromptShowButtons],
+            aiPromptAuto: ['comfyui_ai_prompt_auto', DEFAULT_SETTINGS.aiPromptAuto],
+            aiPromptAutoGenerateImage: ['comfyui_ai_prompt_auto_generate_image', DEFAULT_SETTINGS.aiPromptAutoGenerateImage],
+            aiPromptContextMessages: ['comfyui_ai_prompt_context_messages', DEFAULT_SETTINGS.aiPromptContextMessages],
+            aiPromptResponseLength: ['comfyui_ai_prompt_response_length', DEFAULT_SETTINGS.aiPromptResponseLength],
+            aiPromptInstruction: ['comfyui_ai_prompt_instruction', DEFAULT_SETTINGS.aiPromptInstruction],
+            aiPromptProvider: ['comfyui_ai_prompt_provider', DEFAULT_SETTINGS.aiPromptProvider],
+            aiPromptApiUrl: ['comfyui_ai_prompt_api_url', DEFAULT_SETTINGS.aiPromptApiUrl],
+            aiPromptApiKey: ['comfyui_ai_prompt_api_key', DEFAULT_SETTINGS.aiPromptApiKey],
+            aiPromptApiModel: ['comfyui_ai_prompt_api_model', DEFAULT_SETTINGS.aiPromptApiModel],
+            aiPromptAutoDetectModels: ['comfyui_ai_prompt_auto_detect_models', DEFAULT_SETTINGS.aiPromptAutoDetectModels],
+            aiPromptApiTemperature: ['comfyui_ai_prompt_api_temperature', DEFAULT_SETTINGS.aiPromptApiTemperature],
+            aiPromptApiTimeout: ['comfyui_ai_prompt_api_timeout', DEFAULT_SETTINGS.aiPromptApiTimeout],
         };
 
         const settingsEntries = Object.entries(settingsToLoad);
@@ -4336,7 +4934,9 @@ let initialized = false;
         const settingsToSave = {};
         for (const key in inputs) {
             const input = inputs[key];
-            if (!input) continue;
+            if (!input?.id) continue;
+            if (input === inputs.aiPromptApiModelSelect) continue;
+            if (input === inputs.aiPromptApiKeySelect) continue;
 
             let value;
             if (input.type === 'checkbox') {
@@ -4406,6 +5006,10 @@ let initialized = false;
                 }
                 await loadCurrentMode();
                 await loadSettings(inputs);
+                document.getElementById(PANEL_ID)?.updateAiPromptProviderUI?.();
+                populateAiPromptModelSelect([], inputs.aiPromptApiModel?.value || '');
+                document.getElementById(PANEL_ID)?.scheduleAiPromptModelDetection?.();
+                await Promise.all(Object.values(presetManagers).map(manager => manager?.loadPresets?.()));
                 updateWorkflowList();
                 renderComfyUILoraList();
                 updateComfyUISelectedLorasDisplay();
@@ -4836,6 +5440,655 @@ let initialized = false;
         }
     }
 
+    const AI_PROMPT_EXTRA_KEY = 'st_comfyui_webui_helper';
+
+    async function getAiPromptSettings() {
+        const stored = await getStoredValues([
+            ['comfyui_ai_prompt_enabled', DEFAULT_SETTINGS.aiPromptEnabled],
+            ['comfyui_ai_prompt_show_buttons', DEFAULT_SETTINGS.aiPromptShowButtons],
+            ['comfyui_ai_prompt_auto', DEFAULT_SETTINGS.aiPromptAuto],
+            ['comfyui_ai_prompt_auto_generate_image', DEFAULT_SETTINGS.aiPromptAutoGenerateImage],
+            ['comfyui_ai_prompt_context_messages', DEFAULT_SETTINGS.aiPromptContextMessages],
+            ['comfyui_ai_prompt_response_length', DEFAULT_SETTINGS.aiPromptResponseLength],
+            ['comfyui_ai_prompt_instruction', DEFAULT_SETTINGS.aiPromptInstruction],
+            ['comfyui_ai_prompt_provider', DEFAULT_SETTINGS.aiPromptProvider],
+            ['comfyui_ai_prompt_api_url', DEFAULT_SETTINGS.aiPromptApiUrl],
+            ['comfyui_ai_prompt_api_key', DEFAULT_SETTINGS.aiPromptApiKey],
+            ['comfyui_ai_prompt_api_model', DEFAULT_SETTINGS.aiPromptApiModel],
+            ['comfyui_ai_prompt_api_temperature', DEFAULT_SETTINGS.aiPromptApiTemperature],
+            ['comfyui_ai_prompt_api_timeout', DEFAULT_SETTINGS.aiPromptApiTimeout],
+        ]);
+
+        const provider = String(stored.comfyui_ai_prompt_provider || DEFAULT_SETTINGS.aiPromptProvider).trim();
+        return {
+            enabled: !!stored.comfyui_ai_prompt_enabled,
+            showButtons: !!stored.comfyui_ai_prompt_show_buttons,
+            auto: !!stored.comfyui_ai_prompt_auto || !!stored.comfyui_ai_prompt_auto_generate_image,
+            autoGenerateImage: !!stored.comfyui_ai_prompt_auto_generate_image,
+            contextMessages: Math.min(20, Math.max(1, parseInt(stored.comfyui_ai_prompt_context_messages, 10) || DEFAULT_SETTINGS.aiPromptContextMessages)),
+            responseLength: Math.min(1000, Math.max(120, parseInt(stored.comfyui_ai_prompt_response_length, 10) || DEFAULT_SETTINGS.aiPromptResponseLength)),
+            instruction: String(stored.comfyui_ai_prompt_instruction || DEFAULT_AI_PROMPT_INSTRUCTION).trim() || DEFAULT_AI_PROMPT_INSTRUCTION,
+            provider: provider === 'openai_compatible' ? 'openai_compatible' : 'sillytavern',
+            apiUrl: String(stored.comfyui_ai_prompt_api_url || '').trim(),
+            apiKey: String(stored.comfyui_ai_prompt_api_key || '').trim(),
+            apiModel: String(stored.comfyui_ai_prompt_api_model || '').trim(),
+            apiTemperature: Math.min(2, Math.max(0, Number.isFinite(Number.parseFloat(stored.comfyui_ai_prompt_api_temperature)) ? Number.parseFloat(stored.comfyui_ai_prompt_api_temperature) : DEFAULT_SETTINGS.aiPromptApiTemperature)),
+            apiTimeout: Math.min(300000, Math.max(5000, parseInt(stored.comfyui_ai_prompt_api_timeout, 10) || DEFAULT_SETTINGS.aiPromptApiTimeout)),
+        };
+    }
+
+    function getMessageIndexFromNode(messageNode) {
+        const nativeId = messageNode?.getAttribute('mesid') ?? messageNode?.dataset?.messageId;
+        const index = Number.parseInt(nativeId, 10);
+        return Number.isInteger(index) && index >= 0 ? index : -1;
+    }
+
+    function getChatMessageByNode(messageNode) {
+        const index = getMessageIndexFromNode(messageNode);
+        if (index < 0) return { index, message: null, context: null };
+
+        const context = getContext();
+        const message = Array.isArray(context?.chat) ? context.chat[index] : null;
+        return { index, message, context };
+    }
+
+    function isAiPromptEligibleMessage(messageNode) {
+        const { message } = getChatMessageByNode(messageNode);
+        const isUser = messageNode?.getAttribute('is_user') === 'true' || message?.is_user === true;
+        const isSystem = messageNode?.getAttribute('is_system') === 'true' || message?.is_system === true;
+        const type = String(messageNode?.getAttribute('type') || message?.extra?.type || '').toLowerCase();
+
+        return !!messageNode && !!message && !isUser && !isSystem && !type.includes('narrator') && !type.includes('assistant_note');
+    }
+
+    function ensureAiPromptExtra(message) {
+        if (!message.extra || typeof message.extra !== 'object') {
+            message.extra = {};
+        }
+        if (!message.extra[AI_PROMPT_EXTRA_KEY] || typeof message.extra[AI_PROMPT_EXTRA_KEY] !== 'object') {
+            message.extra[AI_PROMPT_EXTRA_KEY] = {};
+        }
+        return message.extra[AI_PROMPT_EXTRA_KEY];
+    }
+
+    function getStoredAiPrompt(message) {
+        const prompt = message?.extra?.[AI_PROMPT_EXTRA_KEY]?.ai_prompt;
+        return typeof prompt === 'string' ? prompt.trim() : '';
+    }
+
+    async function saveAiPromptToMessage(messageNode, prompt, rawOutput = '') {
+        const { index, message } = getChatMessageByNode(messageNode);
+        if (!message) throw new Error('无法定位当前聊天消息');
+
+        const extra = ensureAiPromptExtra(message);
+        extra.ai_prompt = String(prompt || '').trim();
+        extra.ai_prompt_raw = String(rawOutput || '').trim();
+        extra.ai_prompt_updated_at = new Date().toISOString();
+
+        await saveChatConditional();
+        return { index, message, prompt: extra.ai_prompt };
+    }
+
+    async function clearAiPromptFromMessage(messageNode) {
+        const { message } = getChatMessageByNode(messageNode);
+        if (!message?.extra?.[AI_PROMPT_EXTRA_KEY]) return;
+        delete message.extra[AI_PROMPT_EXTRA_KEY].ai_prompt;
+        delete message.extra[AI_PROMPT_EXTRA_KEY].ai_prompt_raw;
+        delete message.extra[AI_PROMPT_EXTRA_KEY].ai_prompt_updated_at;
+        await saveChatConditional();
+    }
+
+    function stripConfiguredImageTags(text, startTag, endTag) {
+        let result = String(text || '');
+        const pairs = [
+            ['[IMG_GEN]', '[/IMG_GEN]'],
+            [startTag, endTag],
+        ].filter(([start, end]) => start && end);
+
+        for (const [start, end] of pairs) {
+            const regex = new RegExp(`${escapeRegex(start)}[\\s\\S]*?${escapeRegex(end)}`, 'gi');
+            result = result.replace(regex, ' ');
+        }
+
+        return result.replace(/\s+/g, ' ').trim();
+    }
+
+    async function getCleanMessageTextForAiPrompt(message, startTag, endTag) {
+        const currentSwipe = Array.isArray(message?.swipes) && Number.isInteger(message?.swipe_id)
+            ? message.swipes[message.swipe_id]
+            : '';
+        const raw = currentSwipe || message?.mes || '';
+        return stripConfiguredImageTags(stripHtmlToText(raw), startTag, endTag);
+    }
+
+    async function buildAiPromptContext(targetIndex, contextLimit) {
+        const context = getContext();
+        const chat = Array.isArray(context?.chat) ? context.chat : [];
+        const startTag = await GM_getValue('comfyui_start_tag', DEFAULT_SETTINGS.startTag);
+        const endTag = await GM_getValue('comfyui_end_tag', DEFAULT_SETTINGS.endTag);
+        const startIndex = Math.max(0, targetIndex - contextLimit + 1);
+        const selected = [];
+
+        for (let i = startIndex; i <= targetIndex && i < chat.length; i++) {
+            const message = chat[i];
+            if (!message || message.is_system) continue;
+
+            const text = await getCleanMessageTextForAiPrompt(message, startTag, endTag);
+            if (!text) continue;
+
+            selected.push({
+                index: i,
+                role: message.is_user ? 'User' : 'Assistant',
+                name: message.name || (message.is_user ? 'User' : 'Assistant'),
+                text,
+            });
+        }
+
+        return selected;
+    }
+
+    function buildAiPromptQuietPrompt({ instruction, messages, targetIndex }) {
+        const transcript = messages
+            .map(item => `#${item.index} ${item.role} (${item.name}): ${item.text}`)
+            .join('\n\n');
+        const target = messages.find(item => item.index === targetIndex);
+
+        return `${instruction}
+
+下面是最近的 SillyTavern RP 聊天内容。请只根据这些内容选择最适合生成单张图的静态画面。
+
+最近聊天：
+${transcript || '(empty)'}
+
+目标消息：#${targetIndex}${target ? ` ${target.role} (${target.name})` : ''}
+
+请输出最终英文绘图提示词。`;
+    }
+
+    function getOpenAICompatibleChatUrl(baseUrl) {
+        const trimmed = String(baseUrl || '').trim().replace(/\/+$/, '');
+        if (!trimmed) return '';
+        return /\/chat\/completions$/i.test(trimmed) ? trimmed : `${trimmed}/chat/completions`;
+    }
+
+    function getOpenAICompatibleModelsUrl(baseUrl) {
+        const trimmed = String(baseUrl || '').trim().replace(/\/+$/, '');
+        if (!trimmed) return '';
+        if (/\/chat\/completions$/i.test(trimmed)) {
+            return trimmed.replace(/\/chat\/completions$/i, '/models');
+        }
+        return /\/models$/i.test(trimmed) ? trimmed : `${trimmed}/models`;
+    }
+
+    function extractOpenAICompatibleText(payload) {
+        const choice = payload?.choices?.[0];
+        return String(
+            choice?.message?.content ||
+            choice?.text ||
+            payload?.output_text ||
+            payload?.response ||
+            ''
+        );
+    }
+
+    function extractOpenAICompatibleModels(payload) {
+        const source = Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload?.models)
+                ? payload.models
+                : Array.isArray(payload)
+                    ? payload
+                    : [];
+
+        return source
+            .map(item => typeof item === 'string' ? item : (item?.id || item?.name || item?.model))
+            .map(name => String(name || '').trim())
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b));
+    }
+
+    async function fetchOpenAICompatibleModels({ apiUrl, apiKey, apiTimeout }) {
+        const url = getOpenAICompatibleModelsUrl(apiUrl);
+        if (!url) throw new Error('请先填写 AI/LLM API Base URL');
+
+        const headers = {};
+        if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
+        const response = await makeRequest({
+            method: 'GET',
+            url,
+            headers,
+            timeout: apiTimeout || DEFAULT_SETTINGS.aiPromptApiTimeout,
+        });
+
+        let parsed;
+        try {
+            parsed = JSON.parse(response.responseText || '{}');
+        } catch {
+            throw new Error('模型列表接口返回了无效 JSON');
+        }
+
+        const models = extractOpenAICompatibleModels(parsed);
+        if (!models.length) throw new Error('未检测到可用模型');
+        return models;
+    }
+
+    async function generateAiPromptWithOpenAICompatible(settings, quietPrompt) {
+        const url = getOpenAICompatibleChatUrl(settings.apiUrl);
+        if (!url) throw new Error('请先填写 AI/LLM API Base URL');
+        if (!settings.apiModel) throw new Error('请先选择或填写 AI/LLM 模型');
+
+        const headers = { 'Content-Type': 'application/json' };
+        if (settings.apiKey) {
+            headers.Authorization = `Bearer ${settings.apiKey}`;
+        }
+
+        const payload = {
+            model: settings.apiModel,
+            messages: [
+                { role: 'system', content: 'You generate only the final English image prompt. Do not explain.' },
+                { role: 'user', content: quietPrompt },
+            ],
+            temperature: settings.apiTemperature,
+            max_tokens: Math.max(64, Math.ceil(settings.responseLength * 1.4)),
+        };
+
+        const response = await makeRequest({
+            method: 'POST',
+            url,
+            headers,
+            data: JSON.stringify(payload),
+            timeout: settings.apiTimeout,
+        });
+
+        let parsed;
+        try {
+            parsed = JSON.parse(response.responseText || '{}');
+        } catch {
+            throw new Error('AI 绘图 API 返回了无效 JSON');
+        }
+
+        const text = extractOpenAICompatibleText(parsed).trim();
+        if (!text) throw new Error('AI 绘图 API 没有返回可用文本');
+        return text;
+    }
+
+    async function testAiPromptOpenAICompatibleApi() {
+        const settings = await getAiPromptSettings();
+        if (settings.provider !== 'openai_compatible') {
+            showToast('info', '当前使用 SillyTavern LLM，无需测试外部 API');
+            return;
+        }
+
+        const output = await generateAiPromptWithOpenAICompatible(
+            { ...settings, responseLength: 80 },
+            'Return exactly this short image prompt in English: medium shot eye-level portrait in soft natural light.'
+        );
+        showToast('success', `AI 接口可用: ${sanitizeAiPromptOutput(output).slice(0, 80) || 'OK'}`);
+    }
+
+    function populateAiPromptModelSelect(models, selectedModel = '') {
+        const select = document.getElementById('comfyui-ai-prompt-api-model-select');
+        if (!select) return;
+
+        const current = String(selectedModel || document.getElementById('comfyui-ai-prompt-api-model')?.value || '').trim();
+        select.innerHTML = `<option value="">${current ? `当前手动模型: ${escapeHTML(current)}` : '手动输入模型名...'}</option>`;
+        models.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model;
+            option.textContent = model;
+            select.appendChild(option);
+        });
+
+        if (current && models.includes(current)) {
+            select.value = current;
+        } else {
+            select.value = '';
+        }
+    }
+
+    async function detectAiPromptModels({ silent = false } = {}) {
+        const settings = await getAiPromptSettings();
+        if (settings.provider !== 'openai_compatible') {
+            if (!silent) showToast('info', '当前使用 SillyTavern LLM，无需检测外部模型');
+            return [];
+        }
+
+        const models = await fetchOpenAICompatibleModels(settings);
+        populateAiPromptModelSelect(models, settings.apiModel);
+
+        const modelInput = document.getElementById('comfyui-ai-prompt-api-model');
+        if (modelInput && !modelInput.value.trim() && models[0]) {
+            modelInput.value = models[0];
+            modelInput.dispatchEvent(new Event('input', { bubbles: true }));
+            const select = document.getElementById('comfyui-ai-prompt-api-model-select');
+            if (select) select.value = models[0];
+        }
+
+        if (!silent) showToast('success', `已检测到 ${models.length} 个模型`);
+        return models;
+    }
+
+    async function generateAiPromptRawOutput(settings, quietPrompt) {
+        if (settings.provider === 'openai_compatible') {
+            return generateAiPromptWithOpenAICompatible(settings, quietPrompt);
+        }
+
+        return generateQuietPrompt({
+            quietPrompt,
+            skipWIAN: true,
+            responseLength: settings.responseLength,
+            removeReasoning: true,
+            trimToSentence: false,
+        });
+    }
+
+    function sanitizeAiPromptOutput(output) {
+        let text = decodeHTML(String(output || '')).trim();
+        text = text.replace(/^```[\w-]*\s*/i, '').replace(/```$/i, '').trim();
+
+        const imgBlock = text.match(/\[IMG_GEN\]([\s\S]*?)\[\/IMG_GEN\]/i);
+        if (imgBlock) {
+            text = imgBlock[1].trim();
+        }
+
+        text = text
+            .split(/\r?\n/)
+            .map(line => line.trim())
+            .filter(line => line && !/^\[\/?IMG_GEN\]$/i.test(line))
+            .map(line => line.replace(/^[-*•\d.)\s]+/, '').trim())
+            .join('\n')
+            .trim();
+
+        text = text.replace(/^(here is|here's|final prompt|image prompt|drawing prompt)\s*:?\s*/i, '').trim();
+        return text;
+    }
+
+    async function generateAiPromptForMessage(messageNode) {
+        const settings = await getAiPromptSettings();
+        if (!settings.enabled) {
+            throw new Error('AI 绘图提示词功能未启用');
+        }
+        if (!isAiPromptEligibleMessage(messageNode)) {
+            throw new Error('当前消息不适合生成绘图提示词');
+        }
+
+        const { index } = getChatMessageByNode(messageNode);
+        const messages = await buildAiPromptContext(index, settings.contextMessages);
+        const quietPrompt = buildAiPromptQuietPrompt({
+            instruction: settings.instruction,
+            messages,
+            targetIndex: index,
+        });
+
+        const rawOutput = await generateAiPromptRawOutput(settings, quietPrompt);
+        const prompt = sanitizeAiPromptOutput(rawOutput);
+
+        if (!prompt) {
+            throw new Error('LLM 没有返回可用的绘图提示词');
+        }
+
+        await saveAiPromptToMessage(messageNode, prompt, rawOutput);
+        return prompt;
+    }
+
+    function buildGenerateButtonGroup(prompt, messageId, source = 'tag') {
+        const cleanPrompt = String(prompt || '').trim();
+        const encodedPrompt = escapeHTML(cleanPrompt);
+        const generationId = simpleHash(`${source}_${cleanPrompt}_${messageId}`);
+        const label = source === 'ai_prompt' ? '生成图片' : '开始生成';
+        return `<span class="comfy-button-group" data-generation-id="${generationId}" data-processed-tag="${source === 'tag'}" data-source="${escapeHTML(source)}"><button type="button" class="comfy-button comfy-chat-generate-button" data-prompt="${encodedPrompt}">${label}</button></span>`;
+    }
+
+    async function setupGenerateButtonGroup(group, { allowAutoGenerate = false } = {}) {
+        if (!group || group.dataset.listenerAttached) return;
+        group.dataset.listenerAttached = 'true';
+
+        const id = group.dataset.generationId;
+        const btn = group.querySelector('.comfy-chat-generate-button');
+        if (!id || !btn) return;
+
+        const cached = await imageCacheDB.getImage(id);
+        if (cached) {
+            await displayImage(group, id);
+            await setupGeneratedState(btn, id);
+            return;
+        }
+
+        const autoGen = allowAutoGenerate
+            ? await GM_getValue('comfyui_auto_generate', DEFAULT_SETTINGS.autoGenerate)
+            : false;
+        const systemStatus = checkSendingStatus();
+        if (autoGen && !systemStatus.isSending && !btn.dataset.autoTriggered) {
+            btn.dataset.autoTriggered = 'true';
+            setTimeout(() => btn.click(), 300);
+        }
+    }
+
+    async function setupGenerateButtonGroups(container, options = {}) {
+        const buttonGroups = container.querySelectorAll('.comfy-button-group');
+        for (const group of buttonGroups) {
+            await setupGenerateButtonGroup(group, options);
+        }
+    }
+
+    function createPromptSummary(prompt) {
+        const text = String(prompt || '').trim();
+        const lines = text
+            .split(/\r?\n/)
+            .map(line => line.trim())
+            .filter(Boolean);
+        const sentenceCount = (text.match(/[.!?。！？](?:\s|$)/g) || []).length || lines.length || 1;
+        const wordCount = (text.match(/[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)?/g) || []).length;
+        const meta = [
+            sentenceCount ? `${sentenceCount}句` : '',
+            wordCount ? `${wordCount}词` : '',
+        ].filter(Boolean).join(' / ');
+        return meta ? `绘图提示词已隐藏（${meta}）` : '绘图提示词已隐藏';
+    }
+
+    function setAiPromptPanelBusy(panel, message, busy = true, { includeGenerate = true } = {}) {
+        if (!panel) return;
+        panel.classList.toggle('is-busy', busy);
+        panel.setAttribute('aria-busy', busy ? 'true' : 'false');
+        const status = panel.querySelector('.comfy-ai-prompt-status');
+        if (status) {
+            status.textContent = message || (panel.dataset.readyText || '提示词已准备');
+        }
+        const selector = includeGenerate
+            ? '.comfy-ai-prompt-action, .comfy-chat-generate-button'
+            : '.comfy-ai-prompt-action';
+        panel.querySelectorAll(selector).forEach(btn => {
+            btn.disabled = busy;
+        });
+    }
+
+    async function renderAiPromptControlsForMessage(messageNode, { allowAuto = false } = {}) {
+        const mesText = messageNode?.querySelector('.mes_text');
+        if (!mesText) return;
+
+        const existing = messageNode.querySelector('.comfy-ai-prompt-panel');
+        const settings = await getAiPromptSettings();
+
+        if (!settings.enabled || !settings.showButtons || !isAiPromptEligibleMessage(messageNode)) {
+            existing?.remove();
+            return;
+        }
+
+        const { index, message, context } = getChatMessageByNode(messageNode);
+        if (!message || !context) return;
+
+        const prompt = getStoredAiPrompt(message);
+        const messageId = getStableMessageId(messageNode);
+        const panel = existing || document.createElement('div');
+        panel.className = 'comfy-ai-prompt-panel';
+        panel.dataset.messageIndex = String(index);
+        panel.dataset.readyText = prompt ? '提示词已准备' : '等待分析';
+
+        const activeTextarea = panel.querySelector?.('.comfy-ai-prompt-editor:not([hidden]) .comfy-ai-prompt-textarea');
+        const promptHash = prompt ? simpleHash(prompt) : '';
+        if (
+            existing &&
+            prompt &&
+            activeTextarea &&
+            activeTextarea.value !== prompt
+        ) {
+            return;
+        }
+        if (existing && prompt && panel.dataset.promptHash === promptHash) {
+            await setupGenerateButtonGroups(panel, { allowAutoGenerate: false });
+            return;
+        }
+
+        if (!existing) {
+            mesText.insertAdjacentElement('afterend', panel);
+        }
+
+        if (prompt) {
+            panel.dataset.promptHash = promptHash;
+            const isEditorOpen = panel.dataset.editorOpen === 'true';
+            const summary = createPromptSummary(prompt);
+            panel.innerHTML = `
+                <div class="comfy-ai-prompt-header">
+                    <span>AI 绘图</span>
+                    <span class="comfy-ai-prompt-status">提示词已准备</span>
+                </div>
+                <button type="button" class="comfy-ai-prompt-summary comfy-ai-prompt-action" data-action="toggle-edit" aria-expanded="${isEditorOpen ? 'true' : 'false'}" title="点击查看或编辑完整提示词">${escapeHTML(summary)}</button>
+                <div class="comfy-ai-prompt-editor" ${isEditorOpen ? '' : 'hidden'}>
+                    <textarea class="comfy-ai-prompt-textarea" spellcheck="false">${escapeHTML(prompt)}</textarea>
+                </div>
+                <div class="comfy-ai-prompt-actions">
+                    ${buildGenerateButtonGroup(prompt, messageId, 'ai_prompt')}
+                    <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="quick">重写并生成</button>
+                    <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="rewrite">重写提示词</button>
+                    <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="toggle-edit" aria-expanded="${isEditorOpen ? 'true' : 'false'}">${isEditorOpen ? '收起编辑' : '编辑提示词'}</button>
+                    <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="save">保存编辑</button>
+                    <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="copy">复制</button>
+                    <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="clear">清除</button>
+                </div>
+            `;
+            await setupGenerateButtonGroups(panel, { allowAutoGenerate: false });
+        } else {
+            delete panel.dataset.promptHash;
+            panel.innerHTML = `
+                <div class="comfy-ai-prompt-header">
+                    <span>AI 绘图</span>
+                    <span class="comfy-ai-prompt-status">等待分析</span>
+                </div>
+                <div class="comfy-ai-prompt-actions">
+                    <button type="button" class="comfy-button comfy-ai-prompt-action primary" data-action="quick">AI生图</button>
+                    <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="generate">AI提示词</button>
+                </div>
+            `;
+
+            const isLatestMessage = index === context.chat.length - 1;
+            const shouldAutoGenerate = settings.auto && allowAuto && isLatestMessage && !messageNode.dataset.aiPromptAutoTriggered && !isMessageStreaming(messageNode);
+            if (shouldAutoGenerate) {
+                messageNode.dataset.aiPromptAutoTriggered = 'true';
+                setTimeout(() => {
+                    const autoPanel = messageNode.querySelector('.comfy-ai-prompt-panel');
+                    setAiPromptPanelBusy(autoPanel, '自动分析提示词中...');
+                    generateAiPromptForMessage(messageNode)
+                        .then(() => renderAiPromptControlsForMessage(messageNode, { allowAuto: false }))
+                        .then(() => {
+                            if (settings.autoGenerateImage) {
+                                messageNode.querySelector('.comfy-ai-prompt-panel .comfy-chat-generate-button')?.click();
+                            }
+                        })
+                        .catch(error => {
+                            console.error('[AI Gen] 自动生成 AI 绘图提示词失败:', error);
+                            showToast('warning', `AI绘图提示词生成失败: ${error.message || error}`);
+                            setAiPromptPanelBusy(autoPanel, '分析失败', false);
+                        });
+                }, 150);
+            }
+        }
+    }
+
+    async function onAiPromptActionClick(event) {
+        const button = event.target.closest('.comfy-ai-prompt-action');
+        if (!button || button.disabled) return;
+
+        const messageNode = button.closest('.mes');
+        if (!messageNode) return;
+
+        const action = button.dataset.action;
+        const panel = button.closest('.comfy-ai-prompt-panel');
+
+        try {
+            if (action === 'toggle-edit') {
+                const editor = panel?.querySelector('.comfy-ai-prompt-editor');
+                if (!editor) return;
+                const willOpen = editor.hasAttribute('hidden');
+                editor.toggleAttribute('hidden', !willOpen);
+                panel.dataset.editorOpen = willOpen ? 'true' : 'false';
+                panel.querySelectorAll('[data-action="toggle-edit"]').forEach(toggle => {
+                    toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+                    if (!toggle.classList.contains('comfy-ai-prompt-summary')) {
+                        toggle.textContent = willOpen ? '收起编辑' : '编辑提示词';
+                    }
+                });
+                if (willOpen) {
+                    requestAnimationFrame(() => editor.querySelector('.comfy-ai-prompt-textarea')?.focus());
+                }
+                return;
+            }
+
+            if (action === 'generate' || action === 'rewrite' || action === 'quick') {
+                const isQuick = action === 'quick';
+                setAiPromptPanelBusy(panel, isQuick ? '分析提示词中...' : (action === 'rewrite' ? '重写提示词中...' : '分析提示词中...'));
+                await generateAiPromptForMessage(messageNode);
+                await renderAiPromptControlsForMessage(messageNode, { allowAuto: false });
+                const freshPanel = messageNode.querySelector('.comfy-ai-prompt-panel');
+                setAiPromptPanelBusy(freshPanel, '提示词已准备', false);
+                if (isQuick) {
+                    const generatedButton = freshPanel?.querySelector('.comfy-chat-generate-button');
+                    if (!generatedButton) throw new Error('未找到图片生成按钮');
+                    generatedButton.click();
+                }
+                showToast('success', isQuick ? 'AI 绘图已开始' : 'AI 绘图提示词已生成');
+                return;
+            }
+
+            if (action === 'save') {
+                const textarea = panel?.querySelector('.comfy-ai-prompt-textarea');
+                const prompt = textarea?.value?.trim() || '';
+                if (!prompt) {
+                    showToast('warning', '请先展开编辑并填写绘图提示词');
+                    return;
+                }
+                await saveAiPromptToMessage(messageNode, prompt, prompt);
+                await renderAiPromptControlsForMessage(messageNode, { allowAuto: false });
+                showToast('success', '绘图提示词已保存');
+                return;
+            }
+
+            if (action === 'copy') {
+                const textarea = panel?.querySelector('.comfy-ai-prompt-textarea');
+                const { message } = getChatMessageByNode(messageNode);
+                const prompt = textarea?.value?.trim() || getStoredAiPrompt(message);
+                if (!prompt) {
+                    showToast('warning', '没有可复制的绘图提示词');
+                    return;
+                }
+                await navigator.clipboard.writeText(prompt);
+                showToast('success', '绘图提示词已复制');
+            }
+
+            if (action === 'clear') {
+                await clearAiPromptFromMessage(messageNode);
+                await renderAiPromptControlsForMessage(messageNode, { allowAuto: false });
+                showToast('success', '绘图提示词已清除');
+            }
+        } catch (error) {
+            console.error('[AI Gen] AI 绘图提示词操作失败:', error);
+            showToast('error', error.message || String(error));
+            if (action === 'generate' || action === 'rewrite' || action === 'quick') {
+                setAiPromptPanelBusy(panel, '', false);
+            }
+        }
+    }
+
     /**
     * 处理消息并添加生成按钮
     * @param {HTMLElement} messageNode - 消息DOM节点
@@ -4871,7 +6124,7 @@ let initialized = false;
      * @param {HTMLElement} messageNode - 消息DOM节点
      * @param {boolean} forceReplace - 是否强制替换（即使在流式中）
      */
-    async function processMessageForComfyButton(messageNode, forceReplace = false) {
+    async function processMessageForImageActions(messageNode, forceReplace = false) {
         // 编辑中不处理，避免误判和污染状态
         if (!forceReplace && isMessageBeingEdited(messageNode)) return;
 
@@ -4895,6 +6148,7 @@ let initialized = false;
             if (streamingState.activeMessages.has(messageId)) {
                 markMessageAsStreamComplete(messageNode);
             }
+            await renderAiPromptControlsForMessage(messageNode, { allowAuto: forceReplace || !isMessageStreaming(messageNode) });
             return;
         }
 
@@ -4920,42 +6174,12 @@ let initialized = false;
             const cleanPrompt = prompt.replace(/<[^>]*>/g, "").trim();
             if (!cleanPrompt) return _match;
 
-            const encodedPrompt = escapeHTML(cleanPrompt);
-            const generationId = simpleHash(`${cleanPrompt}_${messageId}`);
-
-            return `<span class="comfy-button-group" data-generation-id="${generationId}" data-processed-tag="true"><button class="comfy-button comfy-chat-generate-button" data-prompt="${encodedPrompt}">开始生成</button></span>`;
+            return buildGenerateButtonGroup(cleanPrompt, messageId, 'tag');
         });
 
         //  步骤4：处理按钮逻辑
-        const buttonGroups = mesText.querySelectorAll('.comfy-button-group');
-        if (buttonGroups.length > 0) {
-            const autoGen = await GM_getValue('comfyui_auto_generate', DEFAULT_SETTINGS.autoGenerate);
-
-            for (const group of buttonGroups) {
-                if (group.dataset.listenerAttached) continue;
-                group.dataset.listenerAttached = 'true';
-
-                const id = group.dataset.generationId;
-                const btn = group.querySelector('.comfy-chat-generate-button');
-                if (!btn) continue;
-
-                // 检查缓存
-                const cached = await imageCacheDB.getImage(id);
-                if (cached) {
-                    await displayImage(group, id);
-                    await setupGeneratedState(btn, id);
-                } else {
-                    // [Phase 3.1] Direct listener removed - delegation handles clicks
-
-                    // 自动生成（仅当不在发送状态时）
-                    const systemStatus = checkSendingStatus();
-                    if (autoGen && !systemStatus.isSending && !btn.dataset.autoTriggered) {
-                        btn.dataset.autoTriggered = 'true';
-                        setTimeout(() => btn.click(), 300);
-                    }
-                }
-            }
-        }
+        await setupGenerateButtonGroups(mesText, { allowAutoGenerate: true });
+        await renderAiPromptControlsForMessage(messageNode, { allowAuto: forceReplace || !isMessageStreaming(messageNode) });
 
         // 清理流式状态
         if (streamingState.activeMessages.has(messageId)) {
@@ -4978,7 +6202,7 @@ let initialized = false;
         for (const messageId of messageIds) {
             const messageNode = document.querySelector(`[data-ai-gen-id="${messageId}"]`);
             if (messageNode) {
-                await processMessageForComfyButton(messageNode, true); // 强制替换
+                await processMessageForImageActions(messageNode, true); // 强制替换
             } else {
                 // 节点不存在，从队列移除
                 streamingState.pendingQueue.delete(messageId);
@@ -4998,10 +6222,13 @@ let initialized = false;
         const group = button.closest('.comfy-button-group');
         const promptFromChat = button.dataset.prompt;
         const generationId = group.dataset.generationId;
+        const aiPanel = group.closest('.comfy-ai-prompt-panel');
+        const source = group.dataset.source || 'tag';
+        const initialLabel = source === 'ai_prompt' ? '生成图片' : '开始生成';
 
         if (button.disabled || button.dataset.processing === 'true') return;
 
-        const isFirstGeneration = button.textContent === '开始生成';
+        const isFirstGeneration = button.textContent === '开始生成' || button.textContent === '生成图片';
 
         //  节流检查
         const lastClick = generateThrottle.get(generationId);
@@ -5022,6 +6249,7 @@ let initialized = false;
         button.textContent = '生成中...';
         button.disabled = true;
         button.className = 'comfy-button comfy-chat-generate-button testing';
+        setAiPromptPanelBusy(aiPanel, '图片生成中...');
 
         // 隐藏按钮模式：非首次生成时隐藏按钮
         const {
@@ -5109,6 +6337,9 @@ let initialized = false;
 
             button.className = 'comfy-button comfy-chat-generate-button success';
             button.textContent = '成功';
+            if (aiPanel) {
+                setAiPromptPanelBusy(aiPanel, '图片已生成', false, { includeGenerate: false });
+            }
             setTimeout(() => setupGeneratedState(button, generationId), 2000);
 
         } catch (error) {
@@ -5118,12 +6349,16 @@ let initialized = false;
                 group.classList.remove('comfy-buttons-hidden');
                 button.disabled = false;
                 button.className = 'comfy-button comfy-chat-generate-button';
-                button.textContent = isFirstGeneration ? '开始生成' : '重新生成';
+                button.textContent = isFirstGeneration ? initialLabel : '重新生成';
+                setAiPromptPanelBusy(aiPanel, '', false);
             } else {
                 console.error('生成图片失败:', error);
                 showToast('error', error.message || String(error));
                 button.className = 'comfy-button comfy-chat-generate-button error';
                 button.textContent = '失败';
+                if (aiPanel) {
+                    setAiPromptPanelBusy(aiPanel, '生成失败', false);
+                }
                 setTimeout(() => {
                     button.textContent = '重新生成';
                     button.disabled = false;
@@ -5238,7 +6473,11 @@ let initialized = false;
             ['comfyui_sampler', DEFAULT_SETTINGS.sampler],
             ['comfyui_scheduler', DEFAULT_SETTINGS.scheduler],
             ['comfyui_gen_width', DEFAULT_SETTINGS.genWidth],
-            ['comfyui_gen_height', DEFAULT_SETTINGS.genHeight]
+            ['comfyui_gen_height', DEFAULT_SETTINGS.genHeight],
+            ['comfyui_lora_auto_append_triggers', DEFAULT_SETTINGS.loraAutoAppendTriggers],
+            ['comfyui_lora_strict_injection', DEFAULT_SETTINGS.loraStrictInjection],
+            ['comfyui_lora_save_debug_workflow', DEFAULT_SETTINGS.loraSaveDebugWorkflow],
+            ['comfyui_lora_injection_mode', DEFAULT_SETTINGS.loraInjectionMode],
         ]);
         const url = comfySettings.comfyui_url.trim();
         const workflowString = comfySettings.comfyui_workflow;
@@ -5259,14 +6498,24 @@ let initialized = false;
         const fixedPositivePrompt = comfySettings.comfyui_positive_prompt;
         const fixedNegativePrompt = comfySettings.comfyui_negative_prompt;
 
+        const enabledLoras = getEnabledComfyUISelectedLoras();
+        const loraTriggerPrompt = comfySettings.comfyui_lora_auto_append_triggers
+            ? getComfyUILoraTriggerPrompt(enabledLoras)
+            : '';
+
         const finalPositivePrompt = smartMergePrompts(
             fixedPositivePrompt,  // 固定正向提示词（优先级最高）
+            loraTriggerPrompt,    // LoRA 触发词
             promptFromChat        // 从聊天标记中提取的提示词
         );
 
         const finalNegativePrompt = smartMergePrompts(
             fixedNegativePrompt   // 固定负向提示词
         );
+
+        if (loraTriggerPrompt) {
+            console.log('[AI Gen] 已追加LoRA触发词:', loraTriggerPrompt);
+        }
 
         //  可选：输出最终提示词到控制台（方便调试）
         logFinalPrompts(finalPositivePrompt, finalNegativePrompt, 'ComfyUI');
@@ -5316,9 +6565,30 @@ let initialized = false;
             const workflow = JSON.parse(JSON.stringify(workflowTemplate));
             replacePlaceholdersInWorkflow(workflow, batchParams);
 
-            const enabledLoras = getEnabledComfyUISelectedLoras();
-            if (!intelligentLoraInjection(workflow, enabledLoras, objectInfo)) {
-                throw new Error("智能LoRA注入失败，请检查工作流或LoRA配置。");
+            const loraReport = intelligentLoraInjection(workflow, enabledLoras, objectInfo, {
+                injectionMode: comfySettings.comfyui_lora_injection_mode,
+            });
+            await GM_setValue(STORAGE_KEY_LAST_LORA_REPORT, loraReport);
+            if (!loraReport.ok) {
+                const message = `智能LoRA注入失败: ${loraReport.errors.join('；')}`;
+                if (comfySettings.comfyui_lora_strict_injection) throw new Error(message);
+                showToast('warning', `${message}；已按非严格模式继续`);
+            } else if (enabledLoras.length > 0) {
+                const summary = `${loraReport.strategy} / ${loraReport.effectiveInjectionMode || loraReport.injectionMode} / ${loraReport.insertedNodeIds.length} 节点 / ${loraReport.samplerTargets.length} 采样器`;
+                console.log(`[AI Gen] LoRA注入自检通过: ${summary}`, loraReport);
+                if (loraReport.warnings.length > 0) {
+                    showToast('warning', `LoRA注入完成，但有提示: ${loraReport.warnings.join('；')}`);
+                }
+            }
+
+            if (comfySettings.comfyui_lora_save_debug_workflow) {
+                await GM_setValue(STORAGE_KEY_LAST_COMFYUI_WORKFLOW, {
+                    savedAt: new Date().toISOString(),
+                    workflow,
+                    params: batchParams,
+                    loraReport,
+                    loraTriggerPrompt,
+                });
             }
 
             const promptResponse = await makeRequestWithRetry({
@@ -5496,109 +6766,467 @@ let initialized = false;
     /**
      *  [增强] 智能 LoRA 注入
      */
-    function intelligentLoraInjection(workflow, selectedLoras, objectInfo) {
-        if (!selectedLoras || selectedLoras.length === 0) return true;
+    function normalizeLoraInjectionMode(mode) {
+        const normalized = String(mode || '').trim().toLowerCase();
+        return ['model_only', 'model_clip', 'auto'].includes(normalized)
+            ? normalized
+            : DEFAULT_SETTINGS.loraInjectionMode;
+    }
 
-        //  更详细的错误提示
-        if (!objectInfo) {
-            console.error("[AI Gen] LoRA注入失败：缺失节点元数据");
-            showToast('error', '请先点击"Test"按钮连接ComfyUI以加载节点信息');
-            return false;
+    function createLoraInjectionReport(selectedLoras, options = {}) {
+        const requestedMode = options.injectionMode || DEFAULT_SETTINGS.loraInjectionMode;
+        return {
+            ok: true,
+            strategy: 'none',
+            requestedInjectionMode: requestedMode,
+            injectionMode: normalizeLoraInjectionMode(requestedMode),
+            loraCount: selectedLoras?.length || 0,
+            insertedNodeIds: [],
+            cleanedInjectedNodeIds: [],
+            loaderTypes: [],
+            effectiveInjectionMode: null,
+            chainCount: 0,
+            samplerTargets: [],
+            clipTargets: [],
+            warnings: [],
+            errors: [],
+        };
+    }
+
+    function getNodeOutputIndex(objectInfo, node) {
+        const output = objectInfo?.[node?.class_type]?.output || [];
+        return {
+            model: output.indexOf('MODEL'),
+            clip: output.indexOf('CLIP'),
+        };
+    }
+
+    function isWorkflowLink(value) {
+        return Array.isArray(value) && value.length >= 2 && value[0] != null && Number.isFinite(Number(value[1]));
+    }
+
+    function cloneWorkflowLink(link) {
+        return [String(link[0]), Number(link[1])];
+    }
+
+    function getInputLink(workflow, nodeId, inputKey) {
+        if (!inputKey) return null;
+        const link = workflow?.[nodeId]?.inputs?.[inputKey];
+        return isWorkflowLink(link) ? cloneWorkflowLink(link) : null;
+    }
+
+    function findSamplerNodes(workflow) {
+        return Object.entries(workflow || {})
+            .filter(([, node]) => String(node?.class_type || '').toLowerCase().includes('sampler'))
+            .map(([nodeId, node]) => ({ nodeId, node }));
+    }
+
+    function findWorkflowInputKeyByType(workflow, objectInfo, nodeId, preferredKeys, acceptedType) {
+        const node = workflow?.[nodeId];
+        const required = objectInfo?.[node?.class_type]?.input?.required || {};
+
+        for (const key of preferredKeys) {
+            if (node?.inputs?.[key] != null && (!acceptedType || inputAcceptsComfyType(required[key], acceptedType))) return key;
         }
 
-        const loraLoader = findComfyUILoraLoader(objectInfo);
-        if (!loraLoader) {
-            showToast('error', 'ComfyUI未提供可用的LoRA加载节点，无法注入LoRA。');
-            return false;
-        }
+        const typedKey = Object.keys(required).find(key => (
+            node?.inputs?.[key] != null &&
+            inputAcceptsComfyType(required[key], acceptedType)
+        ));
+        if (typedKey) return typedKey;
 
-        let modelSourceNodeId = null;
-        const candidateNodes = []; //  收集候选节点用于调试
+        return Object.keys(node?.inputs || {}).find(key => (
+            preferredKeys.some(preferred => key.toLowerCase().includes(preferred.toLowerCase()))
+        )) || null;
+    }
 
-        for (const nodeId in workflow) {
-            const node = workflow[nodeId];
-            const nodeInfo = objectInfo[node.class_type];
+    function findClipTextEncodeNodeIds(workflow, nodeId, visited = new Set()) {
+        if (!nodeId || visited.has(String(nodeId))) return [];
+        const currentId = String(nodeId);
+        visited.add(currentId);
+        const node = workflow[currentId];
+        if (!node) return [];
 
-            if (!nodeInfo) {
-                console.warn(`[AI Gen] 未知节点类型: ${node.class_type} (节点ID: ${nodeId})`);
-                continue;
+        const classType = String(node.class_type || '').toLowerCase();
+        if (classType.includes('cliptextencode')) return [currentId];
+
+        const results = [];
+        Object.values(node.inputs || {}).forEach(value => {
+            if (isWorkflowLink(value)) {
+                results.push(...findClipTextEncodeNodeIds(workflow, value[0], visited));
             }
+        });
 
-            const outputs = nodeInfo.output;
-            const inputs = nodeInfo.input?.required || {};
+        return [...new Set(results)];
+    }
 
-            if (outputs.includes("MODEL") && outputs.includes("CLIP")) {
-                candidateNodes.push({ id: nodeId, type: node.class_type });
+    function findClipInputKeyForNode(workflow, objectInfo, nodeId) {
+        const node = workflow?.[nodeId];
+        const required = objectInfo?.[node?.class_type]?.input?.required || {};
 
-                // 找到没有MODEL输入的节点（即模型加载器）
-                if (!Object.values(inputs).some(i => Array.isArray(i) && i[0] === "MODEL")) {
-                    modelSourceNodeId = nodeId;
-                    break;
+        const typedKey = Object.keys(required).find(key => inputAcceptsComfyType(required[key], 'CLIP'));
+        if (typedKey && getInputLink(workflow, nodeId, typedKey)) return typedKey;
+
+        const nameKey = Object.keys(node?.inputs || {}).find(key => key.toLowerCase().includes('clip'));
+        return nameKey || null;
+    }
+
+    function getClipProviderForEncodeNode(workflow, objectInfo, nodeId) {
+        const clipKey = findClipInputKeyForNode(workflow, objectInfo, nodeId);
+        if (!clipKey) return null;
+        const link = getInputLink(workflow, nodeId, clipKey);
+        return link ? { key: clipKey, provider: { id: link[0], index: link[1] } } : null;
+    }
+
+    function isInjectedLoraNode(node) {
+        return String(node?._meta?.title || '').startsWith('Injected LoRA:');
+    }
+
+    function getInjectedNodePassthroughInput(workflow, objectInfo, nodeId, outputIndex) {
+        const node = workflow?.[nodeId];
+        if (!isInjectedLoraNode(node)) return null;
+
+        const outputIndexes = getNodeOutputIndex(objectInfo, node);
+        const required = objectInfo?.[node?.class_type]?.input?.required || {};
+        let inputKey = null;
+
+        if (Number(outputIndex) === outputIndexes.model) {
+            inputKey = findInputKey(required, ['model'], 'MODEL') ||
+                Object.keys(node.inputs || {}).find(key => key.toLowerCase().includes('model'));
+        } else if (Number(outputIndex) === outputIndexes.clip) {
+            inputKey = findInputKey(required, ['clip'], 'CLIP') ||
+                Object.keys(node.inputs || {}).find(key => key.toLowerCase().includes('clip'));
+        }
+
+        return inputKey ? getInputLink(workflow, nodeId, inputKey) : null;
+    }
+
+    function resolveInjectedWorkflowLink(workflow, objectInfo, link) {
+        let resolved = cloneWorkflowLink(link);
+        const visited = new Set();
+
+        while (isWorkflowLink(resolved)) {
+            const nodeId = String(resolved[0]);
+            if (visited.has(nodeId) || !isInjectedLoraNode(workflow?.[nodeId])) break;
+            visited.add(nodeId);
+
+            const upstream = getInjectedNodePassthroughInput(workflow, objectInfo, nodeId, resolved[1]);
+            if (!upstream) break;
+            resolved = upstream;
+        }
+
+        return resolved;
+    }
+
+    function cleanupInjectedLoraNodes(workflow, objectInfo, report) {
+        const injectedIds = Object.entries(workflow || {})
+            .filter(([, node]) => isInjectedLoraNode(node))
+            .map(([nodeId]) => String(nodeId));
+
+        if (injectedIds.length === 0) return;
+
+        for (const node of Object.values(workflow || {})) {
+            if (!node?.inputs) continue;
+            for (const [inputKey, value] of Object.entries(node.inputs)) {
+                if (!isWorkflowLink(value) || !injectedIds.includes(String(value[0]))) continue;
+                const resolved = resolveInjectedWorkflowLink(workflow, objectInfo, value);
+                if (isWorkflowLink(resolved) && !injectedIds.includes(String(resolved[0]))) {
+                    node.inputs[inputKey] = resolved;
                 }
             }
         }
 
-        //  未找到时提供更多信息
-        if (!modelSourceNodeId) {
-            console.error("[AI Gen] LoRA注入失败 - 工作流分析:", {
-                totalNodes: Object.keys(workflow).length,
-                candidateCount: candidateNodes.length,
-                candidates: candidateNodes
-            });
+        injectedIds.forEach(nodeId => {
+            delete workflow[nodeId];
+        });
+        report.cleanedInjectedNodeIds.push(...injectedIds);
+        report.warnings.push(`已清理 ${injectedIds.length} 个旧的插件注入LoRA节点，避免重复叠加`);
+    }
 
-            const errorMsg = candidateNodes.length > 0
-                ? `找到 ${candidateNodes.length} 个可能的模型节点 (${candidateNodes.map(n => n.type).join(', ')})，但无法确定源头。请检查工作流结构。`
-                : '工作流中未找到模型加载节点（CheckpointLoader等），无法注入LoRA。请确保工作流包含模型加载器。';
+    function chooseLoraLoader(availableLoraLoaders, { clipProvider, mode }) {
+        const wantsModelOnly = mode === 'model_only';
+        const wantsModelClip = mode === 'model_clip';
+        const modelOnlyLoader = availableLoraLoaders.find(loader => !loader.inputs.clip);
+        const modelClipLoader = availableLoraLoaders.find(loader => loader.inputs.clip && loader.outputs.clip >= 0);
 
-            showToast('error', errorMsg);
-            return false;
+        if (wantsModelOnly) return modelOnlyLoader || availableLoraLoaders[0] || null;
+        if (wantsModelClip && clipProvider) return modelClipLoader || modelOnlyLoader || availableLoraLoaders[0] || null;
+        if (wantsModelClip) return modelOnlyLoader || availableLoraLoaders[0] || null;
+
+        return modelOnlyLoader || (clipProvider ? modelClipLoader : null) || availableLoraLoaders[0] || null;
+    }
+
+    function setLoraReportLoaderMode(report, loraLoader) {
+        if (!loraLoader) return;
+        report.effectiveInjectionMode = loraLoader.inputs.clip ? 'model_clip' : 'model_only';
+    }
+
+    function buildLoraNodeInputs(loraLoader, lora, modelProvider, clipProvider) {
+        const inputs = {
+            [loraLoader.inputs.loraName]: lora.name,
+            [loraLoader.inputs.model]: [modelProvider.id, modelProvider.index],
+        };
+
+        if (loraLoader.inputs.clip && clipProvider) {
+            inputs[loraLoader.inputs.clip] = [clipProvider.id, clipProvider.index];
         }
 
-        //  成功时输出日志
-        console.log(`[AI Gen] LoRA注入准备 - 源节点: ${workflow[modelSourceNodeId].class_type} (ID: ${modelSourceNodeId})`);
+        if (loraLoader.inputs.modelStrength) {
+            inputs[loraLoader.inputs.modelStrength] = lora.modelWeight;
+        }
 
-        let lastModelProvider = { id: modelSourceNodeId, index: objectInfo[workflow[modelSourceNodeId].class_type].output.indexOf("MODEL") };
-        let lastClipProvider = { id: modelSourceNodeId, index: objectInfo[workflow[modelSourceNodeId].class_type].output.indexOf("CLIP") };
+        if (loraLoader.inputs.clipStrength && loraLoader.inputs.clipStrength !== loraLoader.inputs.modelStrength) {
+            inputs[loraLoader.inputs.clipStrength] = lora.clipWeight;
+        }
 
-        const modelConsumers = [], clipConsumers = [];
-        for (const nodeId in workflow) {
-            const node = workflow[nodeId];
-            if (!node.inputs) continue;
-            for (const inputKey in node.inputs) {
-                const link = node.inputs[inputKey];
-                if (Array.isArray(link) && link[0] === lastModelProvider.id && link[1] === lastModelProvider.index) modelConsumers.push({ nodeId, inputKey });
-                if (Array.isArray(link) && link[0] === lastClipProvider.id && link[1] === lastClipProvider.index) clipConsumers.push({ nodeId, inputKey });
+        return inputs;
+    }
+
+    function appendLoraChain(workflow, selectedLoras, loraLoader, modelProvider, clipProvider, maxIdRef, report) {
+        let lastModelProvider = modelProvider;
+        let lastClipProvider = clipProvider;
+
+        for (const lora of selectedLoras) {
+            const newLoraNodeId = (++maxIdRef.value).toString();
+            workflow[newLoraNodeId] = {
+                inputs: buildLoraNodeInputs(loraLoader, lora, lastModelProvider, lastClipProvider),
+                class_type: loraLoader.type,
+                _meta: {
+                    title: `Injected LoRA: ${lora.name}`,
+                },
+            };
+
+            report.insertedNodeIds.push(newLoraNodeId);
+            lastModelProvider = { id: newLoraNodeId, index: loraLoader.outputs.model };
+            if (loraLoader.inputs.clip && loraLoader.outputs.clip >= 0) {
+                lastClipProvider = { id: newLoraNodeId, index: loraLoader.outputs.clip };
             }
         }
 
-        let maxId = Math.max(
+        report.chainCount += 1;
+        report.loaderTypes.push(loraLoader.type);
+        return { modelProvider: lastModelProvider, clipProvider: lastClipProvider };
+    }
+
+    function getMaxWorkflowNodeId(workflow) {
+        return Math.max(
             0,
-            ...Object.keys(workflow)
+            ...Object.keys(workflow || {})
                 .map(Number)
                 .filter(Number.isFinite)
         );
+    }
 
-        for (const lora of selectedLoras) {
-            const newLoraNodeId = (++maxId).toString();
-            workflow[newLoraNodeId] = {
-                inputs: {
-                    lora_name: lora.name,
-                    strength_model: lora.modelWeight,
-                    strength_clip: lora.clipWeight,
-                    model: [lastModelProvider.id, lastModelProvider.index],
-                    clip: [lastClipProvider.id, lastClipProvider.index]
-                },
-                class_type: loraLoader.type
+    function findFallbackModelSource(workflow, objectInfo) {
+        for (const [nodeId, node] of Object.entries(workflow || {})) {
+            const outputIndexes = getNodeOutputIndex(objectInfo, node);
+            if (outputIndexes.model < 0) continue;
+            return {
+                nodeId,
+                modelProvider: { id: nodeId, index: outputIndexes.model },
+                clipProvider: outputIndexes.clip >= 0 ? { id: nodeId, index: outputIndexes.clip } : null,
             };
-            const loraNodeInfo = loraLoader.nodeInfo;
-            lastModelProvider = { id: newLoraNodeId, index: loraNodeInfo.output.indexOf("MODEL") };
-            lastClipProvider = { id: newLoraNodeId, index: loraNodeInfo.output.indexOf("CLIP") };
         }
 
-        modelConsumers.forEach(c => { workflow[c.nodeId].inputs[c.inputKey] = [lastModelProvider.id, lastModelProvider.index]; });
-        clipConsumers.forEach(c => { workflow[c.nodeId].inputs[c.inputKey] = [lastClipProvider.id, lastClipProvider.index]; });
+        return null;
+    }
 
-        return true;
+    function buildModelClipLinkKey(modelProvider, clipProvider) {
+        return `${modelProvider?.id}:${modelProvider?.index}|${clipProvider?.id ?? 'none'}:${clipProvider?.index ?? -1}`;
+    }
+
+    function validateLoraInjection(workflow, report) {
+        if (report.loraCount === 0) return report;
+
+        const samplerMisses = report.samplerTargets.filter(target => {
+            const modelLink = getInputLink(workflow, target.samplerId, target.inputKey || 'model');
+            return !modelLink || String(modelLink[0]) !== String(target.finalModelProvider.id);
+        });
+
+        if (samplerMisses.length > 0) {
+            report.errors.push(`采样器未接到LoRA链: ${samplerMisses.map(item => item.samplerId).join(', ')}`);
+        }
+
+        const clipMisses = report.clipTargets.filter(target => {
+            const clipLink = getInputLink(workflow, target.nodeId, target.inputKey || 'clip');
+            return !clipLink || String(clipLink[0]) !== String(target.finalClipProvider.id);
+        });
+
+        if (clipMisses.length > 0) {
+            report.warnings.push(`部分CLIPTextEncode未接到LoRA CLIP输出: ${clipMisses.map(item => item.nodeId).join(', ')}`);
+        }
+
+        report.ok = report.errors.length === 0;
+        report.loaderTypes = [...new Set(report.loaderTypes)];
+        report.warnings = [...new Set(report.warnings)];
+        report.errors = [...new Set(report.errors)];
+        return report;
+    }
+
+    function intelligentLoraInjection(workflow, selectedLoras, objectInfo, options = {}) {
+        const report = createLoraInjectionReport(selectedLoras, options);
+        if (!selectedLoras || selectedLoras.length === 0) return report;
+
+        if (!objectInfo) {
+            report.ok = false;
+            report.errors.push('缺失 ComfyUI 节点元数据，请先连接ComfyUI加载 /object_info');
+            return report;
+        }
+
+        cleanupInjectedLoraNodes(workflow, objectInfo, report);
+
+        const availableLoraLoaders = getComfyUILoraLoaders(objectInfo);
+        if (availableLoraLoaders.length === 0) {
+            report.ok = false;
+            report.errors.push('ComfyUI未提供可用的LoRA加载节点，无法注入LoRA');
+            return report;
+        }
+
+        const maxIdRef = { value: getMaxWorkflowNodeId(workflow) };
+        const samplerNodes = findSamplerNodes(workflow);
+        const chainByProvider = new Map();
+
+        for (const { nodeId: samplerId } of samplerNodes) {
+            const modelInputKey = findWorkflowInputKeyByType(workflow, objectInfo, samplerId, ['model'], 'MODEL');
+            const positiveInputKey = findWorkflowInputKeyByType(workflow, objectInfo, samplerId, ['positive'], 'CONDITIONING');
+            const negativeInputKey = findWorkflowInputKeyByType(workflow, objectInfo, samplerId, ['negative'], 'CONDITIONING');
+            const samplerModelLink = getInputLink(workflow, samplerId, modelInputKey);
+            if (!samplerModelLink) {
+                report.warnings.push(`采样器 ${samplerId} 缺少 model 输入，已跳过`);
+                continue;
+            }
+
+            const modelProvider = { id: samplerModelLink[0], index: samplerModelLink[1] };
+            const clipEncodeIds = [
+                ...findClipTextEncodeNodeIds(workflow, getInputLink(workflow, samplerId, positiveInputKey)?.[0]),
+                ...findClipTextEncodeNodeIds(workflow, getInputLink(workflow, samplerId, negativeInputKey)?.[0]),
+            ];
+            const uniqueClipEncodeIds = [...new Set(clipEncodeIds)];
+            const clipProviderInfo = uniqueClipEncodeIds
+                .map(clipNodeId => getClipProviderForEncodeNode(workflow, objectInfo, clipNodeId))
+                .find(Boolean);
+            const clipProvider = clipProviderInfo?.provider || null;
+
+            const loraLoader = chooseLoraLoader(availableLoraLoaders, {
+                clipProvider,
+                mode: report.injectionMode,
+            });
+
+            if (!loraLoader) {
+                report.warnings.push(`采样器 ${samplerId} 没有可用LoRA加载节点，已跳过`);
+                continue;
+            }
+            setLoraReportLoaderMode(report, loraLoader);
+
+            if (report.injectionMode === 'model_only' && loraLoader.inputs.clip) {
+                report.warnings.push(`未找到可用的 MODEL-only LoRA节点，已使用 ${loraLoader.type} 同时增强MODEL和CLIP路径`);
+            }
+
+            if (report.injectionMode === 'model_clip' && !loraLoader.inputs.clip) {
+                report.warnings.push(`未找到可用的 MODEL+CLIP LoRA节点，已使用 ${loraLoader.type} 仅增强MODEL路径`);
+            }
+
+            if (!clipProvider && loraLoader.inputs.clip) {
+                report.warnings.push(`采样器 ${samplerId} 没有可用CLIP链路，但 ${loraLoader.type} 需要CLIP输入，已跳过`);
+                continue;
+            }
+
+            if (report.injectionMode === 'model_clip' && (!loraLoader.inputs.clip || loraLoader.outputs.clip < 0)) {
+                report.warnings.push(`LoRA节点 ${loraLoader.type} 不输出CLIP，只能增强MODEL路径`);
+            }
+
+            const activeClipProvider = loraLoader.inputs.clip ? clipProvider : null;
+            const providerKey = `${loraLoader.type}|${buildModelClipLinkKey(modelProvider, activeClipProvider)}`;
+            let chain = chainByProvider.get(providerKey);
+            if (!chain) {
+                chain = appendLoraChain(workflow, selectedLoras, loraLoader, modelProvider, activeClipProvider, maxIdRef, report);
+                chainByProvider.set(providerKey, chain);
+            }
+
+            workflow[samplerId].inputs[modelInputKey] = [chain.modelProvider.id, chain.modelProvider.index];
+            report.samplerTargets.push({
+                samplerId,
+                inputKey: modelInputKey,
+                originalModelProvider: modelProvider,
+                finalModelProvider: chain.modelProvider,
+            });
+
+            if (loraLoader.inputs.clip && chain.clipProvider) {
+                uniqueClipEncodeIds.forEach(clipNodeId => {
+                    const clipInput = getClipProviderForEncodeNode(workflow, objectInfo, clipNodeId);
+                    if (!clipInput || !workflow[clipNodeId]?.inputs) return;
+                    workflow[clipNodeId].inputs[clipInput.key] = [chain.clipProvider.id, chain.clipProvider.index];
+                    report.clipTargets.push({
+                        nodeId: clipNodeId,
+                        inputKey: clipInput.key,
+                        finalClipProvider: chain.clipProvider,
+                    });
+                });
+            } else if (report.injectionMode === 'model_clip' && uniqueClipEncodeIds.length > 0) {
+                report.warnings.push(`注入方式为 ${report.injectionMode}，保持 ${uniqueClipEncodeIds.length} 个CLIPTextEncode节点的原始CLIP连接`);
+            }
+        }
+
+        if (report.samplerTargets.length > 0) {
+            report.strategy = 'sampler-trace';
+            console.log('[AI Gen] LoRA链路追踪注入完成:', report);
+            return validateLoraInjection(workflow, report);
+        }
+
+        const fallback = findFallbackModelSource(workflow, objectInfo);
+        if (!fallback) {
+            report.ok = false;
+            report.errors.push('工作流中未找到可用 MODEL 输出，无法注入LoRA');
+            return report;
+        }
+
+        const fallbackLoader = chooseLoraLoader(availableLoraLoaders, {
+            clipProvider: fallback.clipProvider,
+            mode: report.injectionMode,
+        });
+
+        if (!fallback.clipProvider && fallbackLoader.inputs.clip) {
+            report.ok = false;
+            report.errors.push(`只能找到需要CLIP输入的LoRA节点 ${fallbackLoader.type}，但工作流未提供可用CLIP源`);
+            return report;
+        }
+        setLoraReportLoaderMode(report, fallbackLoader);
+
+        if (report.injectionMode === 'model_only' && fallbackLoader.inputs.clip) {
+            report.warnings.push(`未找到可用的 MODEL-only LoRA节点，已使用 ${fallbackLoader.type} 同时增强MODEL和CLIP路径`);
+        }
+
+        if (report.injectionMode === 'model_clip' && !fallbackLoader.inputs.clip) {
+            report.warnings.push(`未找到可用的 MODEL+CLIP LoRA节点，已使用 ${fallbackLoader.type} 仅增强MODEL路径`);
+        }
+
+        const chain = appendLoraChain(
+            workflow,
+            selectedLoras,
+            fallbackLoader,
+            fallback.modelProvider,
+            fallbackLoader.inputs.clip ? fallback.clipProvider : null,
+            maxIdRef,
+            report
+        );
+
+        for (const [nodeId, node] of Object.entries(workflow)) {
+            if (!node?.inputs) continue;
+            for (const [inputKey, value] of Object.entries(node.inputs)) {
+                if (!isWorkflowLink(value)) continue;
+                if (String(value[0]) === String(fallback.modelProvider.id) && Number(value[1]) === fallback.modelProvider.index) {
+                    node.inputs[inputKey] = [chain.modelProvider.id, chain.modelProvider.index];
+                }
+                if (fallbackLoader.inputs.clip && fallback.clipProvider && chain.clipProvider && String(value[0]) === String(fallback.clipProvider.id) && Number(value[1]) === fallback.clipProvider.index) {
+                    node.inputs[inputKey] = [chain.clipProvider.id, chain.clipProvider.index];
+                }
+            }
+        }
+
+        report.strategy = 'fallback-global-source';
+        report.warnings.push('未找到采样器链路，已使用全局源头回退注入');
+        console.log('[AI Gen] LoRA回退注入完成:', report);
+        return validateLoraInjection(workflow, report);
     }
 
 
@@ -5814,7 +7442,7 @@ let initialized = false;
 
         const displayWidth = await GM_getValue('comfyui_display_width');
         const displayHeight = await GM_getValue('comfyui_display_height');
-        img.style.width = '100%';
+        img.style.width = displayWidth > 0 ? 'auto' : '100%';
         img.style.maxWidth = displayWidth > 0 ? `${displayWidth}px` : '100%';
         img.style.maxHeight = displayHeight > 0 ? `${displayHeight}px` : 'none';
         img.style.height = 'auto';
@@ -5894,6 +7522,10 @@ let initialized = false;
             const btn = e.target.closest('.comfy-chat-generate-button');
             if (btn && !btn.dataset.delegated) onGenerateButtonClick(e);
         });
+        mainChat.addEventListener('click', (e) => {
+            const btn = e.target.closest('.comfy-ai-prompt-action');
+            if (btn) onAiPromptActionClick(e);
+        });
 
         /**
          *  智能持续扫描系统
@@ -5948,7 +7580,7 @@ let initialized = false;
 
                             await Promise.all(batch.map(async (msg) => {
                                 try {
-                                    await processMessageForComfyButton(msg);
+                                    await processMessageForImageActions(msg);
                                     this.state.processedMessages.add(msg);
                                 } catch (e) {
                                     console.error('[AI Gen Scan] 处理消息失败:', e);
@@ -5971,7 +7603,7 @@ let initialized = false;
                     const systemStatus = checkSendingStatus();
                     if (!systemStatus.isSending && streamingState.activeMessages.size > 0) {
                         for (const [messageId, info] of streamingState.activeMessages) {
-                            await processMessageForComfyButton(info.node, true);
+                            await processMessageForImageActions(info.node, true);
                         }
                     }
                     if (streamingState.pendingQueue.size > 0) {
@@ -5994,9 +7626,9 @@ let initialized = false;
                     if (!mesText) return false;
 
                     const hasTag = mesText.textContent.includes(startTag) && mesText.textContent.includes(endTag);
-                    const hasButton = mesText.querySelector('.comfy-button-group');
+                    const hasButton = mesText.querySelector('.comfy-button-group[data-source="tag"], .comfy-button-group[data-processed-tag="true"]');
 
-                    // 不再在这里硬排除 streaming，交给 processMessageForComfyButton 内部判断
+                    // 不再在这里硬排除 streaming，交给 processMessageForImageActions 内部判断
                     return hasTag && !hasButton && !isMessageBeingEdited(msg);
                 });
 
@@ -6005,7 +7637,7 @@ let initialized = false;
                     this.state.missedCount += missedMessages.length;
 
                     for (const msg of missedMessages) {
-                        await processMessageForComfyButton(msg, true); // 强制处理
+                        await processMessageForImageActions(msg, true); // 强制处理
                         this.state.processedMessages.add(msg);
                     }
                 }
@@ -6096,7 +7728,7 @@ let initialized = false;
                             timeSinceStart > streamingState.config.maxWaitTime) {
 
                             console.log(`[AI Gen] 消息 ${messageId} 内容稳定，开始替换`);
-                            await processMessageForComfyButton(info.node, true);
+                            await processMessageForImageActions(info.node, true);
                         }
                     }
                 }
@@ -6122,10 +7754,10 @@ let initialized = false;
                             if (!manualScan.isEnabled()) return;
                             if (node.nodeType === 1) {
                                 if (node.matches('.mes')) {
-                                    processMessageForComfyButton(node);
+                                    processMessageForImageActions(node);
                                 }
                                 node.querySelectorAll('.mes').forEach(msg => {
-                                    processMessageForComfyButton(msg);
+                                    processMessageForImageActions(msg);
                                 });
                             }
                         });
@@ -6155,7 +7787,7 @@ let initialized = false;
                             const lastDirtyTs = parseInt(targetNode.dataset.aiGenDirtyTs || '0', 10);
                             if (now - lastDirtyTs > 120) {
                                 targetNode.dataset.aiGenDirtyTs = String(now);
-                                processMessageForComfyButton(targetNode, false);
+                                processMessageForImageActions(targetNode, false);
                             }
 
                             hasNewContent = true;
@@ -6181,7 +7813,7 @@ let initialized = false;
 
                                 // 退出编辑后强制重扫，重新识别并转按钮
                                 setTimeout(() => {
-                                    processMessageForComfyButton(messageNode, true);
+                                    processMessageForImageActions(messageNode, true);
                                 }, 80);
                             }
                         }
