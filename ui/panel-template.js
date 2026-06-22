@@ -306,7 +306,10 @@ export function getPanelHtml({ panelId, modes }) {
 					<div class="workflow-action-row">
 						<button id="workflow-format-json" class="comfy-button">格式化 JSON</button>
 						<button id="workflow-copy-json" class="comfy-button">复制 JSON</button>
+						<button id="workflow-minify-json" class="comfy-button">压缩 JSON</button>
+						<button id="workflow-analyze-json" class="comfy-button">分析工作流</button>
 					</div>
+					<div id="workflow-analysis-result" class="workflow-analysis-result" style="display: none;"></div>
 				</div>
 				<div class="workflow-selector-container">
 					<div class="workflow-search-container">
@@ -419,6 +422,26 @@ export function getPanelHtml({ panelId, modes }) {
                             <option value="">全部目录</option>
                         </select>
                         <button type="button" id="comfyui-lora-clear-selection" class="comfy-button error">清空已选</button>
+                    </div>
+                    <div class="lora-bulk-panel">
+                        <div>
+                            <label for="comfyui-lora-bulk-model">模型强度</label>
+                            <input id="comfyui-lora-bulk-model" type="number" value="1.0" min="0" max="2" step="0.05">
+                        </div>
+                        <div>
+                            <label for="comfyui-lora-bulk-clip">CLIP强度</label>
+                            <input id="comfyui-lora-bulk-clip" type="number" value="1.0" min="0" max="2" step="0.05">
+                        </div>
+                        <button type="button" id="comfyui-lora-bulk-apply" class="comfy-button">应用到已选</button>
+                        <button type="button" id="comfyui-lora-select-filtered" class="comfy-button">选择当前过滤</button>
+                        <button type="button" id="comfyui-lora-toggle-filtered" class="comfy-button">反选当前过滤</button>
+                    </div>
+                    <div class="lora-action-row">
+                        <button type="button" id="comfyui-lora-enable-all" class="comfy-button success">全部启用</button>
+                        <button type="button" id="comfyui-lora-disable-all" class="comfy-button warning">全部禁用</button>
+                        <button type="button" id="comfyui-lora-copy-selection" class="comfy-button">复制配置</button>
+                        <button type="button" id="comfyui-lora-export-selection" class="comfy-button">导出配置</button>
+                        <button type="button" id="comfyui-lora-import-selection" class="comfy-button">导入配置</button>
                     </div>
                     <div class="lora-list" id="comfyui-lora-list">
                         <!-- ComfyUI LoRA列表将在这里动态生成 -->

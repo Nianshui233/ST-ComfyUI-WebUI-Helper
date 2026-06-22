@@ -16,7 +16,9 @@ SillyTavern/public/scripts/extensions/third-party/ST-ComfyUI-WebUI-Helper
 - ComfyUI API-format workflow validation.
 - Full plugin settings export/import.
 - Workflow JSON formatting, copying, and placeholder insertion helpers.
+- Workflow JSON minify and analysis helpers for node counts, placeholders, LoRA readiness, and common warnings.
 - Workflow, prompt preset, LoRA, image cache, and img2img panel controls.
+- ComfyUI LoRA bulk tools: filtered multi-select/toggle, shared model/CLIP weight apply, enable/disable all, injection order controls, and copy/export/import selections.
 - SillyTavern `/proxy` based request compatibility for cross-origin API calls.
 - Optional direct-connection mode that bypasses the SillyTavern proxy (requires CORS enabled on ComfyUI/WebUI) to avoid backend log spam.
 - WebSocket-based ComfyUI result retrieval, with HTTP polling and preview frames as fallbacks.

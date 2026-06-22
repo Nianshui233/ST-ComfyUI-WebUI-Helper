@@ -344,6 +344,31 @@ let initialized = false;
         return Number.isFinite(number) ? number : fallback;
     }
 
+    function formatDecimal(value, fallback = 1) {
+        return Number.parseFloat(normalizeNumber(value, fallback).toFixed(3));
+    }
+
+    const WORKFLOW_RECOMMENDED_PLACEHOLDERS = [
+        '%prompt%',
+        '%negative_prompt%',
+        '%width%',
+        '%height%',
+        '%seed%',
+        '%steps%',
+        '%cfg%',
+        '%sampler%',
+        '%scheduler%',
+        '%model%',
+    ];
+
+    const WORKFLOW_SUPPORTED_PLACEHOLDERS = [
+        ...WORKFLOW_RECOMMENDED_PLACEHOLDERS,
+        '%unet_model%',
+        '%init_image%',
+        '%denoise%',
+        '%denoising_strength%',
+    ];
+
     // [Phase 1.1] Cache /object_info responses
     let _objectInfoCache = { url: '', data: null, timestamp: 0 };
     async function getCachedObjectInfo(url, ttl = 30000) {
@@ -2190,6 +2215,8 @@ let initialized = false;
         buttons.cancelEdit.addEventListener('click', cancelEditMode);
         buttons.formatWorkflow?.addEventListener('click', () => formatCurrentWorkflow(inputs.workflow));
         buttons.copyWorkflow?.addEventListener('click', () => copyCurrentWorkflow(inputs.workflow));
+        buttons.minifyWorkflow?.addEventListener('click', () => minifyCurrentWorkflow(inputs.workflow));
+        buttons.analyzeWorkflow?.addEventListener('click', () => analyzeCurrentWorkflow(inputs.workflow));
         document.querySelectorAll('.workflow-placeholder-btn').forEach(button => {
             button.addEventListener('click', () => insertWorkflowPlaceholder(inputs.workflow, button.dataset.placeholder));
         });
@@ -2351,6 +2378,14 @@ let initialized = false;
             updateComfyUISelectedLorasDisplay();
             showToast('success', '已清空ComfyUI LoRA选择');
         });
+        buttons.comfyuiLoraBulkApply?.addEventListener('click', applyComfyUILoraBulkWeights);
+        buttons.comfyuiLoraSelectFiltered?.addEventListener('click', () => selectFilteredComfyUILoras('add'));
+        buttons.comfyuiLoraToggleFiltered?.addEventListener('click', () => selectFilteredComfyUILoras('toggle'));
+        buttons.comfyuiLoraEnableAll?.addEventListener('click', () => setAllComfyUILorasEnabled(true));
+        buttons.comfyuiLoraDisableAll?.addEventListener('click', () => setAllComfyUILorasEnabled(false));
+        buttons.comfyuiLoraCopySelection?.addEventListener('click', copyComfyUILoraSelection);
+        buttons.comfyuiLoraExportSelection?.addEventListener('click', exportComfyUILoraSelection);
+        buttons.comfyuiLoraImportSelection?.addEventListener('click', importComfyUILoraSelection);
     }
 
     // [优化] 拆分 initPanelLogic
@@ -2627,6 +2662,149 @@ let initialized = false;
             showToast('success', '工作流 JSON 已复制');
         } catch (error) {
             showToast('error', `复制失败: ${error.message}`);
+        }
+    }
+
+    function minifyCurrentWorkflow(workflowInput) {
+        if (!workflowInput.value.trim()) {
+            showToast('error', '工作流内容为空');
+            return;
+        }
+
+        try {
+            const before = workflowInput.value.length;
+            workflowInput.value = JSON.stringify(JSON.parse(workflowInput.value));
+            workflowInput.dispatchEvent(new Event('input', { bubbles: true }));
+            const after = workflowInput.value.length;
+            const saved = before > 0 ? Math.max(0, Math.round((1 - after / before) * 100)) : 0;
+            showWorkflowValidationResult(validateComfyWorkflow(workflowInput.value));
+            showToast('success', `工作流 JSON 已压缩，减少约 ${saved}%`);
+        } catch (error) {
+            showToast('error', `压缩失败: ${error.message}`);
+        }
+    }
+
+    function analyzeCurrentWorkflow(workflowInput) {
+        if (!workflowInput.value.trim()) {
+            showToast('error', '工作流内容为空');
+            return;
+        }
+
+        try {
+            const workflowText = workflowInput.value;
+            const workflow = JSON.parse(workflowText);
+            const analysis = buildWorkflowAnalysis(workflow, workflowText);
+            renderWorkflowAnalysis(analysis);
+            showWorkflowValidationResult(validateComfyWorkflow(workflowText));
+        } catch (error) {
+            renderWorkflowAnalysis({
+                title: '工作流分析失败',
+                lines: [`JSON解析失败: ${error.message}`],
+                warnings: [],
+            });
+            showToast('error', `分析失败: ${error.message}`);
+        }
+    }
+
+    function buildWorkflowAnalysis(workflow, workflowText) {
+        const nodes = workflow && typeof workflow === 'object' && !Array.isArray(workflow)
+            ? Object.entries(workflow)
+            : [];
+        const classCounts = new Map();
+        const samplerNodes = [];
+        const outputNodes = [];
+        const loraNodes = [];
+        const modelLoaderNodes = [];
+
+        nodes.forEach(([nodeId, node]) => {
+            const classType = String(node?.class_type || 'Unknown');
+            const classLower = classType.toLowerCase();
+            classCounts.set(classType, (classCounts.get(classType) || 0) + 1);
+            if (classLower.includes('sampler')) samplerNodes.push(nodeId);
+            if (classType === 'SaveImage' || classType === 'PreviewImage') outputNodes.push(nodeId);
+            if (classLower.includes('lora')) loraNodes.push(nodeId);
+            if (classLower.includes('checkpoint') || classLower.includes('unetloader') || classLower.includes('diffusionmodell')) {
+                modelLoaderNodes.push(nodeId);
+            }
+        });
+
+        const placeholders = [...new Set(workflowText.match(/%[a-zA-Z0-9_]+%/g) || [])].sort();
+        const missingRecommended = WORKFLOW_RECOMMENDED_PLACEHOLDERS.filter(placeholder => !placeholders.includes(placeholder));
+        const unknownPlaceholders = placeholders.filter(placeholder => !WORKFLOW_SUPPORTED_PLACEHOLDERS.includes(placeholder));
+        const topClasses = [...classCounts.entries()]
+            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+            .slice(0, 8)
+            .map(([classType, count]) => `${classType} x${count}`);
+
+        const selectedLoras = getCurrentComfyUISelectedLoras();
+        const enabledLoras = selectedLoras.filter(lora => lora.enabled !== false);
+        const warnings = [];
+
+        if (missingRecommended.length > 0) {
+            warnings.push(`缺少常用占位符: ${missingRecommended.join(', ')}`);
+        }
+        if (unknownPlaceholders.length > 0) {
+            warnings.push(`发现未知占位符: ${unknownPlaceholders.join(', ')}`);
+        }
+        if (enabledLoras.length > 0 && modelLoaderNodes.length === 0) {
+            warnings.push('当前已启用 LoRA，但工作流里未明显识别到模型加载节点，智能注入可能失败');
+        }
+        if (outputNodes.length === 0) {
+            warnings.push('缺少 SaveImage/PreviewImage 输出节点');
+        }
+        if (samplerNodes.length === 0) {
+            warnings.push('未识别到采样器节点');
+        }
+        if (workflowText.includes('%init_image%') && !workflowText.includes('%denoise%') && !workflowText.includes('%denoising_strength%')) {
+            warnings.push('使用了 %init_image%，但没有重绘强度占位符');
+        }
+
+        return {
+            title: '工作流分析',
+            lines: [
+                `节点: ${nodes.length}`,
+                `采样器节点: ${samplerNodes.length ? samplerNodes.join(', ') : '未找到'}`,
+                `输出节点: ${outputNodes.length ? outputNodes.join(', ') : '未找到'}`,
+                `模型加载节点: ${modelLoaderNodes.length ? modelLoaderNodes.join(', ') : '未明显识别'}`,
+                `工作流内 LoRA 节点: ${loraNodes.length ? loraNodes.join(', ') : '无'}`,
+                `当前已选 LoRA: ${enabledLoras.length}/${selectedLoras.length} 启用`,
+                `已出现占位符: ${placeholders.length ? placeholders.join(', ') : '无'}`,
+                `主要节点类型: ${topClasses.length ? topClasses.join('；') : '无'}`,
+            ],
+            warnings,
+        };
+    }
+
+    function renderWorkflowAnalysis({ title, lines = [], warnings = [] }) {
+        const container = document.getElementById('workflow-analysis-result');
+        if (!container) return;
+
+        container.innerHTML = '';
+        container.style.display = 'block';
+
+        const heading = document.createElement('div');
+        heading.className = 'workflow-analysis-title';
+        heading.textContent = title || '工作流分析';
+        container.appendChild(heading);
+
+        const list = document.createElement('div');
+        list.className = 'workflow-analysis-lines';
+        lines.forEach(line => {
+            const item = document.createElement('div');
+            item.textContent = line;
+            list.appendChild(item);
+        });
+        container.appendChild(list);
+
+        if (warnings.length > 0) {
+            const warningList = document.createElement('div');
+            warningList.className = 'workflow-analysis-warnings';
+            warnings.forEach(warning => {
+                const item = document.createElement('div');
+                item.textContent = `提示: ${warning}`;
+                warningList.appendChild(item);
+            });
+            container.appendChild(warningList);
         }
     }
 
@@ -3489,8 +3667,8 @@ let initialized = false;
         const fallbackWeight = normalizeNumber(item.weight, 1);
         return {
             name,
-            modelWeight: normalizeNumber(item.modelWeight, fallbackWeight),
-            clipWeight: normalizeNumber(item.clipWeight, fallbackWeight),
+            modelWeight: formatDecimal(item.modelWeight, fallbackWeight),
+            clipWeight: formatDecimal(item.clipWeight, fallbackWeight),
             enabled: item.enabled !== false,
         };
     }
@@ -3632,12 +3810,7 @@ let initialized = false;
 
         renderComfyUILoraFolderOptions(folderFilter);
 
-        const filteredLoras = availableComfyUILoras.filter(lora => {
-            const folder = getComfyUILoraFolder(lora.name);
-            const matchesFolder = !folderFilter || folder === folderFilter;
-            const matchesSearch = !searchTerm || lora.name.toLowerCase().includes(searchTerm);
-            return matchesFolder && matchesSearch;
-        });
+        const filteredLoras = getFilteredComfyUILoras(searchTerm, folderFilter);
 
         if (filteredLoras.length === 0) {
             loraListContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">没有匹配的LoRA</div>';
@@ -3749,6 +3922,27 @@ let initialized = false;
         folderSelect.value = currentValue;
     }
 
+    function getComfyUILoraFilterState() {
+        return {
+            searchTerm: (document.getElementById('comfyui-lora-search')?.value || '').trim().toLowerCase(),
+            folderFilter: document.getElementById('comfyui-lora-folder-filter')?.value || '',
+        };
+    }
+
+    function getFilteredComfyUILoras(searchTerm, folderFilter) {
+        const filter = {
+            searchTerm: searchTerm ?? getComfyUILoraFilterState().searchTerm,
+            folderFilter: folderFilter ?? getComfyUILoraFilterState().folderFilter,
+        };
+
+        return availableComfyUILoras.filter(lora => {
+            const folder = getComfyUILoraFolder(lora.name);
+            const matchesFolder = !filter.folderFilter || folder === filter.folderFilter;
+            const matchesSearch = !filter.searchTerm || lora.name.toLowerCase().includes(filter.searchTerm);
+            return matchesFolder && matchesSearch;
+        });
+    }
+
     const comfyUILoraManager = {
         getAll() {
             const parsed = safeJsonParse(localStorage.getItem('comfyui_selected_loras') || '[]', [], 'comfyui_selected_loras');
@@ -3766,8 +3960,8 @@ let initialized = false;
             if (!items.some(i => i.name === name)) {
                 items.push({
                     name,
-                    modelWeight: normalizeNumber(modelWeight, 1),
-                    clipWeight: normalizeNumber(clipWeight, normalizeNumber(modelWeight, 1)),
+                    modelWeight: formatDecimal(modelWeight, 1),
+                    clipWeight: formatDecimal(clipWeight, normalizeNumber(modelWeight, 1)),
                     enabled: true,
                 });
                 this.setAll(items);
@@ -3796,11 +3990,173 @@ let initialized = false;
     function removeComfyUISelectedLora(name) { comfyUILoraManager.remove(name); }
     function updateComfyUISelectedLoraWeight(name, modelWeight, clipWeight = modelWeight) {
         comfyUILoraManager.update(name, {
-            modelWeight: normalizeNumber(modelWeight, 1),
-            clipWeight: normalizeNumber(clipWeight, normalizeNumber(modelWeight, 1)),
+            modelWeight: formatDecimal(modelWeight, 1),
+            clipWeight: formatDecimal(clipWeight, normalizeNumber(modelWeight, 1)),
         });
     }
     function setComfyUISelectedLoraEnabled(name, enabled) { comfyUILoraManager.update(name, { enabled }); }
+
+    function getComfyUILoraBulkWeights() {
+        const modelWeight = formatDecimal(document.getElementById('comfyui-lora-bulk-model')?.value, 1);
+        const clipWeight = formatDecimal(document.getElementById('comfyui-lora-bulk-clip')?.value, modelWeight);
+        return { modelWeight, clipWeight };
+    }
+
+    function refreshComfyUILoraUI() {
+        renderComfyUILoraList();
+        updateComfyUISelectedLorasDisplay();
+    }
+
+    function applyComfyUILoraBulkWeights() {
+        const items = getCurrentComfyUISelectedLoras();
+        if (items.length === 0) {
+            showToast('warning', '请先选择至少一个ComfyUI LoRA');
+            return;
+        }
+
+        const { modelWeight, clipWeight } = getComfyUILoraBulkWeights();
+        comfyUILoraManager.setAll(items.map(item => ({ ...item, modelWeight, clipWeight })));
+        refreshComfyUILoraUI();
+        showToast('success', `已将 ${items.length} 个LoRA权重设为 ${modelWeight}/${clipWeight}`);
+    }
+
+    function selectFilteredComfyUILoras(mode = 'add') {
+        const filtered = getFilteredComfyUILoras();
+        if (filtered.length === 0) {
+            showToast('warning', '当前过滤条件下没有LoRA');
+            return;
+        }
+
+        const { modelWeight, clipWeight } = getComfyUILoraBulkWeights();
+        const byName = new Map(getCurrentComfyUISelectedLoras().map(lora => [lora.name, lora]));
+
+        filtered.forEach(lora => {
+            if (mode === 'toggle' && byName.has(lora.name)) {
+                byName.delete(lora.name);
+                return;
+            }
+
+            if (byName.has(lora.name)) {
+                byName.set(lora.name, { ...byName.get(lora.name), enabled: true });
+            } else {
+                byName.set(lora.name, {
+                    name: lora.name,
+                    modelWeight,
+                    clipWeight,
+                    enabled: true,
+                });
+            }
+        });
+
+        comfyUILoraManager.setAll([...byName.values()]);
+        refreshComfyUILoraUI();
+        showToast('success', `${mode === 'toggle' ? '已反选' : '已选择'}当前过滤结果 (${filtered.length} 个)`);
+    }
+
+    function setAllComfyUILorasEnabled(enabled) {
+        const items = getCurrentComfyUISelectedLoras();
+        if (items.length === 0) {
+            showToast('warning', '当前没有已选LoRA');
+            return;
+        }
+
+        comfyUILoraManager.setAll(items.map(item => ({ ...item, enabled })));
+        refreshComfyUILoraUI();
+        showToast('success', `已${enabled ? '启用' : '禁用'} ${items.length} 个LoRA`);
+    }
+
+    function moveComfyUISelectedLora(name, direction) {
+        const items = getCurrentComfyUISelectedLoras();
+        const index = items.findIndex(item => item.name === name);
+        const target = index + direction;
+        if (index < 0 || target < 0 || target >= items.length) return;
+
+        [items[index], items[target]] = [items[target], items[index]];
+        comfyUILoraManager.setAll(items);
+        refreshComfyUILoraUI();
+    }
+
+    function buildComfyUILoraExportPayload() {
+        return {
+            type: 'ST-ComfyUI-WebUI-Helper ComfyUI LoRA selection',
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            loras: getCurrentComfyUISelectedLoras(),
+        };
+    }
+
+    async function copyComfyUILoraSelection() {
+        const payload = buildComfyUILoraExportPayload();
+        if (payload.loras.length === 0) {
+            showToast('warning', '当前没有已选LoRA可复制');
+            return;
+        }
+
+        const text = JSON.stringify(payload, null, 2);
+        try {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(text);
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.left = '-9999px';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                textarea.remove();
+            }
+            showToast('success', `已复制 ${payload.loras.length} 个LoRA配置`);
+        } catch (error) {
+            showToast('error', `复制LoRA配置失败: ${error.message}`);
+        }
+    }
+
+    function exportComfyUILoraSelection() {
+        const payload = buildComfyUILoraExportPayload();
+        if (payload.loras.length === 0) {
+            showToast('warning', '当前没有已选LoRA可导出');
+            return;
+        }
+
+        downloadJsonFile(payload, `comfyui_lora_selection_${new Date().toISOString().slice(0, 10)}.json`);
+        showToast('success', `已导出 ${payload.loras.length} 个LoRA配置`);
+    }
+
+    function extractComfyUILorasFromImport(imported) {
+        if (Array.isArray(imported)) return imported;
+        if (Array.isArray(imported?.loras)) return imported.loras;
+        if (Array.isArray(imported?.settings?.comfyui_selected_loras)) return imported.settings.comfyui_selected_loras;
+        if (Array.isArray(imported?.comfyui_selected_loras)) return imported.comfyui_selected_loras;
+        return [];
+    }
+
+    function importComfyUILoraSelection() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                const imported = JSON.parse(await file.text());
+                const importedLoras = normalizeComfyUILoraItems(extractComfyUILorasFromImport(imported));
+                if (importedLoras.length === 0) {
+                    throw new Error('文件中没有可导入的ComfyUI LoRA配置');
+                }
+
+                const mode = document.getElementById('comfyui-lora-preset-mode')?.value || 'replace';
+                applyComfyUILoraPreset(importedLoras, mode);
+                refreshComfyUILoraUI();
+                showToast('success', `已导入 ${importedLoras.length} 个LoRA配置 (${mode})`);
+            } catch (error) {
+                showToast('error', `导入LoRA配置失败: ${error.message}`);
+            }
+        };
+        input.click();
+    }
+
     function updateComfyUISelectedLorasDisplay() {
         const container = document.getElementById('comfyui-selected-loras-container');
         const count = document.getElementById('comfyui-selected-loras-count');
@@ -3816,7 +4172,7 @@ let initialized = false;
             return;
         }
 
-        items.forEach(item => {
+        items.forEach((item, index) => {
             const row = document.createElement('div');
             row.className = `selected-lora-row${item.enabled === false ? ' disabled' : ''}`;
 
@@ -3843,6 +4199,25 @@ let initialized = false;
             clipWeight.value = item.clipWeight;
             clipWeight.title = 'CLIP强度';
 
+            const orderControls = document.createElement('div');
+            orderControls.className = 'selected-lora-order';
+
+            const upBtn = document.createElement('button');
+            upBtn.type = 'button';
+            upBtn.className = 'comfy-button selected-lora-order-btn';
+            upBtn.textContent = '↑';
+            upBtn.title = '上移';
+            upBtn.disabled = index === 0;
+
+            const downBtn = document.createElement('button');
+            downBtn.type = 'button';
+            downBtn.className = 'comfy-button selected-lora-order-btn';
+            downBtn.textContent = '↓';
+            downBtn.title = '下移';
+            downBtn.disabled = index === items.length - 1;
+
+            orderControls.append(upBtn, downBtn);
+
             const removeBtn = document.createElement('button');
             removeBtn.type = 'button';
             removeBtn.className = 'comfy-button error selected-lora-remove';
@@ -3865,13 +4240,16 @@ let initialized = false;
             modelWeight.addEventListener('input', updateWeights);
             clipWeight.addEventListener('input', updateWeights);
 
+            upBtn.addEventListener('click', () => moveComfyUISelectedLora(item.name, -1));
+            downBtn.addEventListener('click', () => moveComfyUISelectedLora(item.name, 1));
+
             removeBtn.addEventListener('click', () => {
                 removeComfyUISelectedLora(item.name);
                 renderComfyUILoraList();
                 updateComfyUISelectedLorasDisplay();
             });
 
-            row.append(enabled, name, modelWeight, clipWeight, removeBtn);
+            row.append(enabled, name, modelWeight, clipWeight, orderControls, removeBtn);
             container.appendChild(row);
         });
     }

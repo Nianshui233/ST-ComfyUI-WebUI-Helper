@@ -349,6 +349,33 @@ export function getPanelStyles({ panelId, buttonId }) {
             font-size: 12px;
         }
 
+        .workflow-analysis-result {
+            margin-top: 10px;
+            padding: 10px 12px;
+            border: 1px solid var(--vp-border-color);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.24);
+            font-size: 0.86em;
+            line-height: 1.5;
+        }
+
+        .workflow-analysis-title {
+            color: var(--vp-accent-color);
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .workflow-analysis-lines {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 4px 14px;
+        }
+
+        .workflow-analysis-warnings {
+            margin-top: 8px;
+            color: var(--vp-warning-color);
+        }
+
         .workflow-selector-container {
             display: flex;
             flex-direction: column;
@@ -626,6 +653,30 @@ export function getPanelStyles({ panelId, buttonId }) {
             margin-bottom: 12px;
         }
 
+        .lora-bulk-panel {
+            display: grid;
+            grid-template-columns: 120px 120px repeat(3, auto);
+            gap: 10px;
+            align-items: end;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.18);
+        }
+
+        .lora-bulk-panel label {
+            font-size: 0.78em;
+            color: #aaa;
+        }
+
+        .lora-action-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
         .lora-list {
             max-height: 42vh;
             overflow-y: auto;
@@ -716,7 +767,7 @@ export function getPanelStyles({ panelId, buttonId }) {
 
         .selected-lora-row {
             display: grid;
-            grid-template-columns: auto minmax(0, 1fr) 70px 70px auto;
+            grid-template-columns: auto minmax(0, 1fr) 70px 70px auto auto;
             gap: 8px;
             align-items: center;
             padding: 6px 0;
@@ -744,6 +795,18 @@ export function getPanelStyles({ panelId, buttonId }) {
             padding: 4px 8px;
             min-height: 28px;
             font-size: 0.8em;
+        }
+
+        .selected-lora-order {
+            display: inline-flex;
+            gap: 4px;
+        }
+
+        .selected-lora-order-btn {
+            width: 28px;
+            min-height: 28px;
+            padding: 0;
+            font-size: 12px;
         }
 
         .selected-lora-tag {
@@ -972,8 +1035,16 @@ export function getPanelStyles({ panelId, buttonId }) {
         grid-template-columns: 1fr;
     }
 
+    .lora-bulk-panel {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .lora-bulk-panel .comfy-button {
+        width: 100%;
+    }
+
     .selected-lora-row {
-        grid-template-columns: auto minmax(0, 1fr) 64px 64px auto;
+        grid-template-columns: auto minmax(0, 1fr) 64px 64px auto auto;
     }
 
     /* 确保表单元素不会过大 */
