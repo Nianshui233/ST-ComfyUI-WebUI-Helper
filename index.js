@@ -5598,6 +5598,10 @@ let initialized = false;
             .map(item => `#${item.index} ${item.role} (${item.name}): ${item.text}`)
             .join('\n\n');
         const target = messages.find(item => item.index === targetIndex);
+        const isDanbooruRule = looksLikeDanbooruRule(instruction);
+        const finalInstruction = isDanbooruRule
+            ? '请严格按上方规则输出最终 Danbooru 标签块。不要输出解释、推理、剧情说明或自然语言绘图描述。'
+            : '请输出最终英文绘图提示词。';
 
         return `${instruction}
 
@@ -5608,7 +5612,31 @@ ${transcript || '(empty)'}
 
 目标消息：#${targetIndex}${target ? ` ${target.role} (${target.name})` : ''}
 
-请输出最终英文绘图提示词。`;
+${finalInstruction}`;
+    }
+
+    function looksLikeDanbooruRule(text) {
+        const source = String(text || '').toLowerCase();
+        return (
+            source.includes('danbooru') ||
+            source.includes('1girl') ||
+            source.includes('1boy') ||
+            source.includes('rating') ||
+            source.includes('tag')
+        ) && (
+            source.includes('img_gen') ||
+            source.includes('break') ||
+            source.includes('general / sensitive / questionable / explicit') ||
+            source.includes('masterpiece, best quality')
+        );
+    }
+
+    function getAiPromptMaxTokens(settings) {
+        const base = Math.max(64, Math.ceil(settings.responseLength * 1.4));
+        if (looksLikeDanbooruRule(settings.instruction)) {
+            return Math.max(base, 900);
+        }
+        return base;
     }
 
     function getOpenAICompatibleChatUrl(baseUrl) {
@@ -5628,13 +5656,39 @@ ${transcript || '(empty)'}
 
     function extractOpenAICompatibleText(payload) {
         const choice = payload?.choices?.[0];
-        return String(
-            choice?.message?.content ||
-            choice?.text ||
-            payload?.output_text ||
-            payload?.response ||
-            ''
-        );
+        const content = choice?.message?.content;
+        if (Array.isArray(content)) {
+            const parts = content
+                .map(part => {
+                    if (typeof part === 'string') return part;
+                    return part?.text || part?.content || part?.value || '';
+                })
+                .filter(Boolean);
+            if (parts.length) return parts.join('\n');
+        }
+
+        if (typeof content === 'string') return content;
+        if (typeof choice?.text === 'string') return choice.text;
+        if (typeof payload?.output_text === 'string') return payload.output_text;
+        if (typeof payload?.response === 'string') return payload.response;
+
+        const output = Array.isArray(payload?.output) ? payload.output : [];
+        const outputText = output.flatMap(item => Array.isArray(item?.content) ? item.content : [])
+            .map(part => part?.text || part?.content || part?.value || '')
+            .filter(Boolean)
+            .join('\n');
+        return outputText;
+    }
+
+    function summarizeOpenAICompatibleEmptyResponse(payload) {
+        const choice = payload?.choices?.[0];
+        const finishReason = choice?.finish_reason || choice?.finishReason || payload?.finish_reason || '';
+        const refusal = choice?.message?.refusal || choice?.message?.content_filter_results || payload?.error?.message || payload?.message || '';
+        const parts = [
+            finishReason ? `finish_reason=${finishReason}` : '',
+            refusal ? `detail=${typeof refusal === 'string' ? refusal : JSON.stringify(refusal).slice(0, 180)}` : '',
+        ].filter(Boolean);
+        return parts.length ? parts.join('; ') : '返回结构里没有可提取的文本';
     }
 
     function extractOpenAICompatibleModels(payload) {
@@ -5679,10 +5733,17 @@ ${transcript || '(empty)'}
         return models;
     }
 
-    async function generateAiPromptWithOpenAICompatible(settings, quietPrompt) {
+    async function requestAiPromptOpenAICompatible(settings, quietPrompt, { retry = false } = {}) {
         const url = getOpenAICompatibleChatUrl(settings.apiUrl);
         if (!url) throw new Error('请先填写 AI/LLM API Base URL');
         if (!settings.apiModel) throw new Error('请先选择或填写 AI/LLM 模型');
+        const isDanbooruRule = looksLikeDanbooruRule(settings.instruction);
+        const systemPrompt = isDanbooruRule
+            ? 'You format final Danbooru tags exactly according to the user rules. Return only the final tag block. Do not explain, refuse, summarize, or convert it to prose.'
+            : 'You are an image-prompt formatter. Return only the final prompt text. Do not explain, refuse, summarize, or add markdown.';
+        const retryPrompt = isDanbooruRule
+            ? `${quietPrompt}\n\n上一次返回没有可用文本。请严格只返回最终 Danbooru 标签块；如果规则要求 [IMG_GEN]，只返回完整 [IMG_GEN] 块。不要解释，不要改写成自然语言。`
+            : `${quietPrompt}\n\n上一次返回没有可用文本。请严格只返回最终绘图提示词；如果规则要求 [IMG_GEN]，只返回完整 [IMG_GEN] 块，不要解释。`;
 
         const headers = { 'Content-Type': 'application/json' };
         if (settings.apiKey) {
@@ -5692,11 +5753,14 @@ ${transcript || '(empty)'}
         const payload = {
             model: settings.apiModel,
             messages: [
-                { role: 'system', content: 'You generate only the final English image prompt. Do not explain.' },
-                { role: 'user', content: quietPrompt },
+                { role: 'system', content: systemPrompt },
+                {
+                    role: 'user',
+                    content: retry ? retryPrompt : quietPrompt,
+                },
             ],
             temperature: settings.apiTemperature,
-            max_tokens: Math.max(64, Math.ceil(settings.responseLength * 1.4)),
+            max_tokens: getAiPromptMaxTokens(settings),
         };
 
         const response = await makeRequest({
@@ -5715,8 +5779,17 @@ ${transcript || '(empty)'}
         }
 
         const text = extractOpenAICompatibleText(parsed).trim();
-        if (!text) throw new Error('AI 绘图 API 没有返回可用文本');
-        return text;
+        return { text, parsed };
+    }
+
+    async function generateAiPromptWithOpenAICompatible(settings, quietPrompt) {
+        const first = await requestAiPromptOpenAICompatible(settings, quietPrompt);
+        if (first.text) return first.text;
+
+        const second = await requestAiPromptOpenAICompatible(settings, quietPrompt, { retry: true });
+        if (second.text) return second.text;
+
+        throw new Error(`AI 绘图 API 没有返回可用文本（${summarizeOpenAICompatibleEmptyResponse(second.parsed || first.parsed)}）`);
     }
 
     async function testAiPromptOpenAICompatibleApi() {
@@ -5791,7 +5864,7 @@ ${transcript || '(empty)'}
 
     function sanitizeAiPromptOutput(output) {
         let text = decodeHTML(String(output || '')).trim();
-        text = text.replace(/^```[\w-]*\s*/i, '').replace(/```$/i, '').trim();
+        text = text.replace(/^```[\w-]*\s*/i, '').replace(/```\s*$/i, '').trim();
 
         const imgBlock = text.match(/\[IMG_GEN\]([\s\S]*?)\[\/IMG_GEN\]/i);
         if (imgBlock) {
@@ -5932,12 +6005,13 @@ ${transcript || '(empty)'}
         panel.dataset.readyText = prompt ? '提示词已准备' : '等待分析';
 
         const activeTextarea = panel.querySelector?.('.comfy-ai-prompt-editor:not([hidden]) .comfy-ai-prompt-textarea');
+        const isEditingAiPrompt = activeTextarea && document.activeElement === activeTextarea;
         const promptHash = prompt ? simpleHash(prompt) : '';
         if (
             existing &&
             prompt &&
             activeTextarea &&
-            activeTextarea.value !== prompt
+            (isEditingAiPrompt || activeTextarea.value !== prompt)
         ) {
             return;
         }
