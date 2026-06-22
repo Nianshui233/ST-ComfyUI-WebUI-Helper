@@ -13,7 +13,8 @@ SillyTavern/public/scripts/extensions/third-party/ST-ComfyUI-WebUI-Helper
 - ComfyUI and WebUI connection modes.
 - Manual connection only, so SillyTavern does not poll ComfyUI/WebUI while unused.
 - AI-first RP image generation: assistant messages get `AI生图` / `AI提示词` actions that use SillyTavern quiet LLM generation to analyze recent context, cache an editable English image prompt on the message, hide that prompt behind an edit-on-demand summary, and then send it through ComfyUI/WebUI without polluting chat text.
-- Optional OpenAI-compatible LLM endpoint for AI prompt analysis in the `AI/LLM管理` tab; SillyTavern's current LLM remains the default, with optional automatic or manual `/models` detection.
+- Optional OpenAI-compatible or native Anthropic LLM endpoint for AI prompt analysis in the `AI/LLM管理` tab; SillyTavern's current LLM remains the default, with optional automatic or manual `/models` detection where supported.
+- Optional external-LLM thinking mode controls for OpenAI, Anthropic, and DeepSeek-style APIs, including provider strategy, effort, and Anthropic budget settings.
 - `AI/LLM管理` supports reusable drawing-analysis rule presets and a local self-named multi-key API Key list; API keys are intentionally excluded from settings export.
 - Chat image actions show clear analyzing/generating/success/failure states while disabling duplicate clicks during long operations.
 - Optional automatic AI prompt analysis or automatic AI prompt + image generation after assistant replies stabilize.

@@ -11,6 +11,7 @@
 - Shifted the chat workflow to AI-first image generation: assistant messages now expose `AI生图` / `AI提示词` actions, cache editable prompts on the message, hide prompts behind an edit-on-demand summary, show analyzing/generating/success/failure states, support rewrite/copy/clear, and can optionally auto-analyze or auto-analyze-and-generate after replies stabilize. Legacy marker scanning remains as a compatibility path.
 - Moved AI drawing settings into a dedicated `AI/LLM管理` tab and added an optional OpenAI-compatible LLM endpoint with automatic/manual `/models` detection while keeping SillyTavern's current LLM as the default.
 - Added reusable AI drawing-analysis rule presets plus a local self-named API Key list for multi-key OpenAI-compatible providers; API keys remain excluded from settings export.
+- Added optional AI/LLM thinking mode controls for external providers, with OpenAI-compatible, native Anthropic, and DeepSeek-style request handling.
 - Added workflow JSON minify and workflow analysis helpers for node counts, placeholders, LoRA readiness, and common warnings.
 - Reduced WebUI progress polling frequency.
 - Fixed cache-panel refresh revoking blob URLs of images still shown in chat (BlobURLTracker is now bucketed by tag).

@@ -58,6 +58,10 @@ export function getPanelInputs() {
         aiPromptAutoDetectModels: document.getElementById('comfyui-ai-prompt-auto-detect-models'),
         aiPromptApiTemperature: document.getElementById('comfyui-ai-prompt-api-temperature'),
         aiPromptApiTimeout: document.getElementById('comfyui-ai-prompt-api-timeout'),
+        aiPromptThinkingMode: document.getElementById('comfyui-ai-prompt-thinking-mode'),
+        aiPromptThinkingStrategy: document.getElementById('comfyui-ai-prompt-thinking-strategy'),
+        aiPromptThinkingEffort: document.getElementById('comfyui-ai-prompt-thinking-effort'),
+        aiPromptThinkingBudget: document.getElementById('comfyui-ai-prompt-thinking-budget'),
     };
 }
 

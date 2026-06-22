@@ -581,6 +581,10 @@ let initialized = false;
         'comfyui_ai_prompt_auto_detect_models',
         'comfyui_ai_prompt_api_temperature',
         'comfyui_ai_prompt_api_timeout',
+        'comfyui_ai_prompt_thinking_mode',
+        'comfyui_ai_prompt_thinking_strategy',
+        'comfyui_ai_prompt_thinking_effort',
+        'comfyui_ai_prompt_thinking_budget',
         'comfyui_panel_position',
     ];
     let observerDebounceTimer = null;
@@ -670,6 +674,10 @@ let initialized = false;
         aiPromptAutoDetectModels: true,
         aiPromptApiTemperature: 0.4,
         aiPromptApiTimeout: 60000,
+        aiPromptThinkingMode: 'default',
+        aiPromptThinkingStrategy: 'auto',
+        aiPromptThinkingEffort: 'medium',
+        aiPromptThinkingBudget: 2048,
     };
 
     // Shared runtime state
@@ -2005,7 +2013,7 @@ let initialized = false;
         let aiPromptModelDetectTimer = null;
         function scheduleAiPromptModelDetection() {
             clearTimeout(aiPromptModelDetectTimer);
-            if (inputs.aiPromptProvider?.value !== 'openai_compatible') return;
+            if (!['openai_compatible', 'anthropic'].includes(inputs.aiPromptProvider?.value)) return;
             if (!inputs.aiPromptAutoDetectModels?.checked) return;
             if (!String(inputs.aiPromptApiUrl?.value || '').trim()) return;
             aiPromptModelDetectTimer = setTimeout(() => {
@@ -2019,7 +2027,7 @@ let initialized = false;
         panel.scheduleAiPromptModelDetection = scheduleAiPromptModelDetection;
 
         function updateAiPromptProviderUI() {
-            const useExternal = inputs.aiPromptProvider?.value === 'openai_compatible';
+            const useExternal = ['openai_compatible', 'anthropic'].includes(inputs.aiPromptProvider?.value);
             [
                 inputs.aiPromptApiUrl,
                 inputs.aiPromptApiKey,
@@ -2029,6 +2037,10 @@ let initialized = false;
                 inputs.aiPromptAutoDetectModels,
                 inputs.aiPromptApiTemperature,
                 inputs.aiPromptApiTimeout,
+                inputs.aiPromptThinkingMode,
+                inputs.aiPromptThinkingStrategy,
+                inputs.aiPromptThinkingEffort,
+                inputs.aiPromptThinkingBudget,
                 buttons.aiPromptDetectModels,
                 buttons.aiPromptTestApi,
                 buttons.aiPromptApiKeyLoad,
@@ -4902,6 +4914,10 @@ let initialized = false;
             aiPromptAutoDetectModels: ['comfyui_ai_prompt_auto_detect_models', DEFAULT_SETTINGS.aiPromptAutoDetectModels],
             aiPromptApiTemperature: ['comfyui_ai_prompt_api_temperature', DEFAULT_SETTINGS.aiPromptApiTemperature],
             aiPromptApiTimeout: ['comfyui_ai_prompt_api_timeout', DEFAULT_SETTINGS.aiPromptApiTimeout],
+            aiPromptThinkingMode: ['comfyui_ai_prompt_thinking_mode', DEFAULT_SETTINGS.aiPromptThinkingMode],
+            aiPromptThinkingStrategy: ['comfyui_ai_prompt_thinking_strategy', DEFAULT_SETTINGS.aiPromptThinkingStrategy],
+            aiPromptThinkingEffort: ['comfyui_ai_prompt_thinking_effort', DEFAULT_SETTINGS.aiPromptThinkingEffort],
+            aiPromptThinkingBudget: ['comfyui_ai_prompt_thinking_budget', DEFAULT_SETTINGS.aiPromptThinkingBudget],
         };
 
         const settingsEntries = Object.entries(settingsToLoad);
@@ -5463,23 +5479,34 @@ let initialized = false;
             ['comfyui_ai_prompt_api_model', DEFAULT_SETTINGS.aiPromptApiModel],
             ['comfyui_ai_prompt_api_temperature', DEFAULT_SETTINGS.aiPromptApiTemperature],
             ['comfyui_ai_prompt_api_timeout', DEFAULT_SETTINGS.aiPromptApiTimeout],
+            ['comfyui_ai_prompt_thinking_mode', DEFAULT_SETTINGS.aiPromptThinkingMode],
+            ['comfyui_ai_prompt_thinking_strategy', DEFAULT_SETTINGS.aiPromptThinkingStrategy],
+            ['comfyui_ai_prompt_thinking_effort', DEFAULT_SETTINGS.aiPromptThinkingEffort],
+            ['comfyui_ai_prompt_thinking_budget', DEFAULT_SETTINGS.aiPromptThinkingBudget],
         ]);
 
         const provider = String(stored.comfyui_ai_prompt_provider || DEFAULT_SETTINGS.aiPromptProvider).trim();
+        const thinkingMode = String(stored.comfyui_ai_prompt_thinking_mode || DEFAULT_SETTINGS.aiPromptThinkingMode).trim();
+        const thinkingStrategy = String(stored.comfyui_ai_prompt_thinking_strategy || DEFAULT_SETTINGS.aiPromptThinkingStrategy).trim();
+        const thinkingEffort = String(stored.comfyui_ai_prompt_thinking_effort || DEFAULT_SETTINGS.aiPromptThinkingEffort).trim();
         return {
             enabled: !!stored.comfyui_ai_prompt_enabled,
             showButtons: !!stored.comfyui_ai_prompt_show_buttons,
             auto: !!stored.comfyui_ai_prompt_auto || !!stored.comfyui_ai_prompt_auto_generate_image,
             autoGenerateImage: !!stored.comfyui_ai_prompt_auto_generate_image,
             contextMessages: Math.min(20, Math.max(1, parseInt(stored.comfyui_ai_prompt_context_messages, 10) || DEFAULT_SETTINGS.aiPromptContextMessages)),
-            responseLength: Math.min(1000, Math.max(120, parseInt(stored.comfyui_ai_prompt_response_length, 10) || DEFAULT_SETTINGS.aiPromptResponseLength)),
+            responseLength: Math.min(4096, Math.max(120, parseInt(stored.comfyui_ai_prompt_response_length, 10) || DEFAULT_SETTINGS.aiPromptResponseLength)),
             instruction: String(stored.comfyui_ai_prompt_instruction || DEFAULT_AI_PROMPT_INSTRUCTION).trim() || DEFAULT_AI_PROMPT_INSTRUCTION,
-            provider: provider === 'openai_compatible' ? 'openai_compatible' : 'sillytavern',
+            provider: ['openai_compatible', 'anthropic'].includes(provider) ? provider : 'sillytavern',
             apiUrl: String(stored.comfyui_ai_prompt_api_url || '').trim(),
             apiKey: String(stored.comfyui_ai_prompt_api_key || '').trim(),
             apiModel: String(stored.comfyui_ai_prompt_api_model || '').trim(),
             apiTemperature: Math.min(2, Math.max(0, Number.isFinite(Number.parseFloat(stored.comfyui_ai_prompt_api_temperature)) ? Number.parseFloat(stored.comfyui_ai_prompt_api_temperature) : DEFAULT_SETTINGS.aiPromptApiTemperature)),
             apiTimeout: Math.min(300000, Math.max(5000, parseInt(stored.comfyui_ai_prompt_api_timeout, 10) || DEFAULT_SETTINGS.aiPromptApiTimeout)),
+            thinkingMode: ['enabled', 'disabled', 'default'].includes(thinkingMode) ? thinkingMode : DEFAULT_SETTINGS.aiPromptThinkingMode,
+            thinkingStrategy: ['auto', 'openai', 'anthropic', 'deepseek'].includes(thinkingStrategy) ? thinkingStrategy : DEFAULT_SETTINGS.aiPromptThinkingStrategy,
+            thinkingEffort: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'].includes(thinkingEffort) ? thinkingEffort : DEFAULT_SETTINGS.aiPromptThinkingEffort,
+            thinkingBudget: Math.min(32000, Math.max(1024, parseInt(stored.comfyui_ai_prompt_thinking_budget, 10) || DEFAULT_SETTINGS.aiPromptThinkingBudget)),
         };
     }
 
@@ -5633,10 +5660,133 @@ ${finalInstruction}`;
 
     function getAiPromptMaxTokens(settings) {
         const base = Math.max(64, Math.ceil(settings.responseLength * 1.4));
-        if (looksLikeDanbooruRule(settings.instruction)) {
-            return Math.max(base, 900);
+        const visibleBudget = looksLikeDanbooruRule(settings.instruction)
+            ? Math.min(8192, Math.max(base, 4096))
+            : Math.min(4096, base);
+        if (settings.thinkingMode === 'enabled') {
+            const thinkingReserve = Math.min(32000, Math.max(1024, parseInt(settings.thinkingBudget, 10) || DEFAULT_SETTINGS.aiPromptThinkingBudget));
+            return Math.min(32768, Math.max(visibleBudget, visibleBudget + thinkingReserve));
         }
-        return base;
+        return visibleBudget;
+    }
+
+    function resolveAiPromptThinkingStrategy(settings) {
+        const configured = String(settings.thinkingStrategy || DEFAULT_SETTINGS.aiPromptThinkingStrategy).trim();
+        if (configured !== 'auto') return configured;
+
+        const apiUrl = String(settings.apiUrl || '').toLowerCase();
+        const model = String(settings.apiModel || '').toLowerCase();
+        if (apiUrl.includes('deepseek') || model.includes('deepseek')) return 'deepseek';
+        if (apiUrl.includes('api.openai.com')) return 'openai';
+        if (!model.includes('chat-latest') && /(^|[^a-z0-9])(o1|o3|o4)(?:[^a-z0-9]|$)/.test(model)) return 'openai';
+        if (!model.includes('chat-latest') && /^gpt-5(?:[.\-_]|$)/.test(model)) return 'openai';
+        return '';
+    }
+
+    function normalizeOpenAIThinkingEffort(settings, mode) {
+        const effort = settings.thinkingEffort;
+        const model = String(settings.apiModel || '').toLowerCase();
+        if (mode === 'disabled') return model.startsWith('gpt-5.1') ? 'none' : 'minimal';
+        if (model.includes('gpt-5-pro')) return 'high';
+        if (model.startsWith('gpt-5.1') && effort === 'minimal') return 'low';
+        if ((effort === 'max' || effort === 'xhigh') && supportsOpenAIXHighReasoning(model)) return 'xhigh';
+        if (effort === 'max' || effort === 'xhigh') return 'high';
+        return ['minimal', 'low', 'medium', 'high'].includes(effort) ? effort : DEFAULT_SETTINGS.aiPromptThinkingEffort;
+    }
+
+    function supportsOpenAIXHighReasoning(model) {
+        const source = String(model || '').toLowerCase();
+        return source.includes('codex-max') || /^gpt-5\.[2-9]/.test(source) || /^gpt-[6-9]/.test(source);
+    }
+
+    function normalizeAnthropicThinkingEffort(effort) {
+        if (effort === 'max') return 'max';
+        if (effort === 'minimal') return 'low';
+        return ['low', 'medium', 'high', 'xhigh'].includes(effort) ? effort : DEFAULT_SETTINGS.aiPromptThinkingEffort;
+    }
+
+    function normalizeDeepSeekThinkingEffort(effort) {
+        return ['xhigh', 'max'].includes(effort) ? 'max' : 'high';
+    }
+
+    function shouldUseAnthropicManualThinkingBudget(model) {
+        const source = String(model || '').toLowerCase();
+        if (!source) return false;
+        if (source.includes('4-6') || source.includes('4.6') || source.includes('4-7') || source.includes('4.7') || source.includes('4-8') || source.includes('4.8')) return false;
+        if (source.includes('fable') || source.includes('mythos')) return false;
+        return source.includes('claude-3') ||
+            source.includes('3-7') ||
+            source.includes('3.7') ||
+            source.includes('4-5') ||
+            source.includes('4.5') ||
+            /claude-(?:opus|sonnet|haiku)-4(?:[-.]|$)/.test(source);
+    }
+
+    function buildAnthropicThinkingConfig(settings) {
+        const mode = String(settings.thinkingMode || DEFAULT_SETTINGS.aiPromptThinkingMode);
+        if (mode === 'disabled') return { thinking: { type: 'disabled' } };
+        if (mode !== 'enabled') return {};
+
+        if (shouldUseAnthropicManualThinkingBudget(settings.apiModel)) {
+            const maxTokens = getAiPromptMaxTokens(settings);
+            const budgetTokens = Math.min(maxTokens - 1, Math.min(32000, Math.max(1024, parseInt(settings.thinkingBudget, 10) || DEFAULT_SETTINGS.aiPromptThinkingBudget)));
+            return {
+                thinking: {
+                    type: 'enabled',
+                    budget_tokens: budgetTokens,
+                },
+            };
+        }
+
+        return {
+            thinking: { type: 'adaptive' },
+            output_config: { effort: normalizeAnthropicThinkingEffort(settings.thinkingEffort) },
+        };
+    }
+
+    function applyAiPromptThinkingPayload(payload, settings) {
+        const mode = String(settings.thinkingMode || DEFAULT_SETTINGS.aiPromptThinkingMode);
+        if (mode === 'default') return payload;
+
+        const strategy = resolveAiPromptThinkingStrategy(settings);
+        if (!strategy) return payload;
+
+        if (strategy === 'openai') {
+            payload.reasoning_effort = normalizeOpenAIThinkingEffort(settings, mode);
+            payload.max_completion_tokens = payload.max_tokens;
+            delete payload.max_tokens;
+            return payload;
+        }
+
+        if (strategy === 'deepseek') {
+            payload.thinking = { type: mode === 'enabled' ? 'enabled' : 'disabled' };
+            if (mode === 'enabled') {
+                payload.reasoning_effort = normalizeDeepSeekThinkingEffort(settings.thinkingEffort);
+            }
+            return payload;
+        }
+
+        if (strategy === 'anthropic') {
+            Object.assign(payload, buildAnthropicThinkingConfig(settings));
+            return payload;
+        }
+
+        return payload;
+    }
+
+    function getAiPromptRequestTemperature(settings) {
+        const strategy = resolveAiPromptThinkingStrategy(settings);
+        if (strategy === 'anthropic') return undefined;
+        if (settings.thinkingMode !== 'enabled') return settings.apiTemperature;
+        if (strategy === 'openai' || strategy === 'deepseek') return undefined;
+        return settings.apiTemperature;
+    }
+
+    function getAnthropicMessagesUrl(baseUrl) {
+        const trimmed = String(baseUrl || '').trim().replace(/\/+$/, '');
+        if (!trimmed) return '';
+        if (/\/v1\/messages$/i.test(trimmed)) return trimmed;
+        return /\/v1$/i.test(trimmed) ? `${trimmed}/messages` : `${trimmed}/v1/messages`;
     }
 
     function getOpenAICompatibleChatUrl(baseUrl) {
@@ -5652,6 +5802,18 @@ ${finalInstruction}`;
             return trimmed.replace(/\/chat\/completions$/i, '/models');
         }
         return /\/models$/i.test(trimmed) ? trimmed : `${trimmed}/models`;
+    }
+
+    function extractAnthropicText(payload) {
+        const content = Array.isArray(payload?.content) ? payload.content : [];
+        return content
+            .map(part => {
+                if (typeof part === 'string') return part;
+                if (part?.type === 'text' && typeof part.text === 'string') return part.text;
+                return part?.text || part?.content || part?.value || '';
+            })
+            .filter(Boolean)
+            .join('\n');
     }
 
     function extractOpenAICompatibleText(payload) {
@@ -5733,6 +5895,57 @@ ${finalInstruction}`;
         return models;
     }
 
+    async function requestAiPromptAnthropic(settings, quietPrompt, { retry = false } = {}) {
+        const url = getAnthropicMessagesUrl(settings.apiUrl);
+        if (!url) throw new Error('请先填写 Anthropic API Base URL');
+        if (!settings.apiKey) throw new Error('请先填写 Anthropic API Key');
+        if (!settings.apiModel) throw new Error('请先选择或填写 Anthropic 模型');
+
+        const isDanbooruRule = looksLikeDanbooruRule(settings.instruction);
+        const systemPrompt = isDanbooruRule
+            ? 'You format final Danbooru tags exactly according to the user rules. Return only the final tag block. Do not explain, refuse, summarize, or convert it to prose.'
+            : 'You are an image-prompt formatter. Return only the final prompt text. Do not explain, refuse, summarize, or add markdown.';
+        const retryPrompt = isDanbooruRule
+            ? `${quietPrompt}\n\n上一次返回没有可用文本。请严格只返回最终 Danbooru 标签块；如果规则要求 [IMG_GEN]，只返回完整 [IMG_GEN] 块。不要解释，不要改写成自然语言。`
+            : `${quietPrompt}\n\n上一次返回没有可用文本。请严格只返回最终绘图提示词；如果规则要求 [IMG_GEN]，只返回完整 [IMG_GEN] 块，不要解释。`;
+
+        const payload = {
+            model: settings.apiModel,
+            system: systemPrompt,
+            messages: [
+                {
+                    role: 'user',
+                    content: retry ? retryPrompt : quietPrompt,
+                },
+            ],
+            max_tokens: getAiPromptMaxTokens(settings),
+        };
+
+        Object.assign(payload, buildAnthropicThinkingConfig(settings));
+
+        const response = await makeRequest({
+            method: 'POST',
+            url,
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': settings.apiKey,
+                'anthropic-version': '2023-06-01',
+            },
+            data: JSON.stringify(payload),
+            timeout: settings.apiTimeout,
+        });
+
+        let parsed;
+        try {
+            parsed = JSON.parse(response.responseText || '{}');
+        } catch {
+            throw new Error('Anthropic API 返回了无效 JSON');
+        }
+
+        const text = extractAnthropicText(parsed).trim();
+        return { text, parsed };
+    }
+
     async function requestAiPromptOpenAICompatible(settings, quietPrompt, { retry = false } = {}) {
         const url = getOpenAICompatibleChatUrl(settings.apiUrl);
         if (!url) throw new Error('请先填写 AI/LLM API Base URL');
@@ -5759,9 +5972,11 @@ ${finalInstruction}`;
                     content: retry ? retryPrompt : quietPrompt,
                 },
             ],
-            temperature: settings.apiTemperature,
             max_tokens: getAiPromptMaxTokens(settings),
         };
+        const temperature = getAiPromptRequestTemperature(settings);
+        if (temperature !== undefined) payload.temperature = temperature;
+        applyAiPromptThinkingPayload(payload, settings);
 
         const response = await makeRequest({
             method: 'POST',
@@ -5792,17 +6007,32 @@ ${finalInstruction}`;
         throw new Error(`AI 绘图 API 没有返回可用文本（${summarizeOpenAICompatibleEmptyResponse(second.parsed || first.parsed)}）`);
     }
 
+    async function generateAiPromptWithAnthropic(settings, quietPrompt) {
+        const first = await requestAiPromptAnthropic(settings, quietPrompt);
+        if (first.text) return first.text;
+
+        const second = await requestAiPromptAnthropic(settings, quietPrompt, { retry: true });
+        if (second.text) return second.text;
+
+        throw new Error(`Anthropic API 没有返回可用文本（${summarizeOpenAICompatibleEmptyResponse(second.parsed || first.parsed)}）`);
+    }
+
     async function testAiPromptOpenAICompatibleApi() {
         const settings = await getAiPromptSettings();
-        if (settings.provider !== 'openai_compatible') {
+        if (!['openai_compatible', 'anthropic'].includes(settings.provider)) {
             showToast('info', '当前使用 SillyTavern LLM，无需测试外部 API');
             return;
         }
 
-        const output = await generateAiPromptWithOpenAICompatible(
-            { ...settings, responseLength: 80 },
-            'Return exactly this short image prompt in English: medium shot eye-level portrait in soft natural light.'
-        );
+        const output = settings.provider === 'anthropic'
+            ? await generateAiPromptWithAnthropic(
+                { ...settings, responseLength: 80 },
+                'Return exactly this short image prompt in English: medium shot eye-level portrait in soft natural light.'
+            )
+            : await generateAiPromptWithOpenAICompatible(
+                { ...settings, responseLength: 80 },
+                'Return exactly this short image prompt in English: medium shot eye-level portrait in soft natural light.'
+            );
         showToast('success', `AI 接口可用: ${sanitizeAiPromptOutput(output).slice(0, 80) || 'OK'}`);
     }
 
@@ -5828,6 +6058,11 @@ ${finalInstruction}`;
 
     async function detectAiPromptModels({ silent = false } = {}) {
         const settings = await getAiPromptSettings();
+        if (settings.provider === 'anthropic') {
+            populateAiPromptModelSelect([], settings.apiModel);
+            if (!silent) showToast('info', 'Anthropic 原生 API 请手动填写模型名');
+            return [];
+        }
         if (settings.provider !== 'openai_compatible') {
             if (!silent) showToast('info', '当前使用 SillyTavern LLM，无需检测外部模型');
             return [];
@@ -5851,6 +6086,9 @@ ${finalInstruction}`;
     async function generateAiPromptRawOutput(settings, quietPrompt) {
         if (settings.provider === 'openai_compatible') {
             return generateAiPromptWithOpenAICompatible(settings, quietPrompt);
+        }
+        if (settings.provider === 'anthropic') {
+            return generateAiPromptWithAnthropic(settings, quietPrompt);
         }
 
         return generateQuietPrompt({

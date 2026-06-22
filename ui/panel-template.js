@@ -299,8 +299,9 @@ export function getPanelHtml({ panelId, modes }) {
 					</div>
 					<div class="comfy-settings-grid">
 						<div><label for="comfyui-ai-prompt-context-messages">上下文条数</label><input id="comfyui-ai-prompt-context-messages" type="number" min="1" max="20" step="1" value="6"></div>
-						<div><label for="comfyui-ai-prompt-response-length">响应长度</label><input id="comfyui-ai-prompt-response-length" type="number" min="120" max="1000" step="10" value="350"></div>
+						<div><label for="comfyui-ai-prompt-response-length">响应长度</label><input id="comfyui-ai-prompt-response-length" type="number" min="120" max="4096" step="10" value="350"></div>
 					</div>
+					<div class="comfy-hint">Danbooru 标签规则会自动使用更高输出预算，避免复杂多角色标签块被截断。</div>
 				</fieldset>
 				<fieldset>
 					<legend>LLM 来源</legend>
@@ -310,6 +311,7 @@ export function getPanelHtml({ panelId, modes }) {
 							<select id="comfyui-ai-prompt-provider">
 								<option value="sillytavern">SillyTavern 当前 LLM（默认）</option>
 								<option value="openai_compatible">OpenAI 兼容 API</option>
+								<option value="anthropic">Anthropic API</option>
 							</select>
 						</div>
 						<div>
@@ -345,7 +347,41 @@ export function getPanelHtml({ panelId, modes }) {
 							<div><label for="comfyui-ai-prompt-api-temperature">Temperature</label><input id="comfyui-ai-prompt-api-temperature" type="number" min="0" max="2" step="0.05" value="0.4"></div>
 							<div><label for="comfyui-ai-prompt-api-timeout">API 超时(ms)</label><input id="comfyui-ai-prompt-api-timeout" type="number" min="5000" max="300000" step="1000" value="60000"></div>
 						</div>
-						<div class="comfy-hint">OpenAI 兼容模式会请求 <code>/chat/completions</code>；模型列表检测会请求 <code>/models</code>。Base URL 可填 <code>http://127.0.0.1:1234/v1</code> 或 <code>https://api.openai.com/v1</code>。</div>
+						<div class="comfy-settings-grid">
+							<div>
+								<label for="comfyui-ai-prompt-thinking-mode">思考模式</label>
+								<select id="comfyui-ai-prompt-thinking-mode">
+									<option value="default">关闭/默认</option>
+									<option value="enabled">开启</option>
+									<option value="disabled">强制关闭</option>
+								</select>
+							</div>
+							<div>
+								<label for="comfyui-ai-prompt-thinking-strategy">思考参数策略</label>
+								<select id="comfyui-ai-prompt-thinking-strategy">
+									<option value="auto">自动识别渠道</option>
+									<option value="openai">OpenAI</option>
+									<option value="anthropic">Anthropic</option>
+									<option value="deepseek">DeepSeek</option>
+								</select>
+							</div>
+						</div>
+						<div class="comfy-settings-grid">
+							<div>
+								<label for="comfyui-ai-prompt-thinking-effort">推理强度</label>
+								<select id="comfyui-ai-prompt-thinking-effort">
+									<option value="minimal">minimal</option>
+									<option value="low">low</option>
+									<option value="medium">medium</option>
+									<option value="high">high</option>
+									<option value="xhigh">xhigh</option>
+									<option value="max">max</option>
+								</select>
+							</div>
+							<div><label for="comfyui-ai-prompt-thinking-budget">思考预算 tokens</label><input id="comfyui-ai-prompt-thinking-budget" type="number" min="1024" max="32000" step="512" value="2048"></div>
+						</div>
+						<div class="comfy-hint">默认不额外发送思考参数；开启后会按 OpenAI / Anthropic / DeepSeek 的常见 API 形态注入字段。OpenAI 兼容 API 仍走 <code>/chat/completions</code>，Anthropic API 走 <code>/v1/messages</code>。</div>
+						<div class="comfy-hint">OpenAI 兼容模式会请求 <code>/chat/completions</code>；模型列表检测会请求 <code>/models</code>。Base URL 可填 <code>http://127.0.0.1:1234/v1</code>、<code>https://api.openai.com/v1</code> 或 <code>https://api.deepseek.com</code>；Anthropic 可填 <code>https://api.anthropic.com</code> 或 <code>https://api.anthropic.com/v1</code>。</div>
 						<button id="comfyui-ai-prompt-test-api" class="comfy-button" style="width:100%; margin-top: 10px;">测试 AI 接口</button>
 					</div>
 				</fieldset>
