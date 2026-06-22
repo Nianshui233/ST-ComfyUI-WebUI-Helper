@@ -1,56 +1,67 @@
 # ST-ComfyUI-WebUI-Helper
 
-SillyTavern third-party extension for generating images through ComfyUI or Stable Diffusion WebUI.
+[English README](README.en.md)
 
-This repository is intended to be used as the extension folder:
+面向 SillyTavern 的第三方生图插件，用于把聊天内容、AI 分析出的绘图提示词、ComfyUI 或 Stable Diffusion WebUI 串起来。插件重点是 RP 场景：它可以从当前聊天上下文中独立调用 LLM 分析画面，再把生成出的提示词送到后端生图，而不需要让主 RP 模型在正文里额外输出绘图块。
+
+本仓库应作为 SillyTavern 第三方扩展目录使用：
 
 ```text
 SillyTavern/public/scripts/extensions/third-party/ST-ComfyUI-WebUI-Helper
 ```
 
-## Features
+## 主要功能
 
-- ComfyUI and WebUI connection modes.
-- Manual connection only, so SillyTavern does not poll ComfyUI/WebUI while unused.
-- AI-first RP image generation: assistant messages get `AI生图` / `AI提示词` actions that use SillyTavern quiet LLM generation to analyze recent context, cache an editable English image prompt on the message, hide that prompt behind an edit-on-demand summary, and then send it through ComfyUI/WebUI without polluting chat text.
-- Optional OpenAI-compatible or native Anthropic LLM endpoint for AI prompt analysis in the `AI/LLM管理` tab; SillyTavern's current LLM remains the default, with optional automatic or manual `/models` detection where supported.
-- Optional external-LLM thinking mode controls for OpenAI, Anthropic, and DeepSeek-style APIs, including provider strategy, effort, and Anthropic budget settings.
-- `AI/LLM管理` supports reusable drawing-analysis rule presets and a local self-named multi-key API Key list; API keys are intentionally excluded from settings export.
-- Chat image actions show clear analyzing/generating/success/failure states while disabling duplicate clicks during long operations.
-- Optional automatic AI prompt analysis or automatic AI prompt + image generation after assistant replies stabilize.
-- Legacy generation-marker scanning remains available as a compatibility path.
-- ComfyUI API-format workflow validation.
-- Full plugin settings export/import.
-- Workflow JSON formatting, copying, and placeholder insertion helpers.
-- Workflow JSON minify and analysis helpers for node counts, placeholders, LoRA readiness, and common warnings.
-- Workflow, prompt preset, AI drawing-rule preset, LoRA, image cache, and img2img panel controls, with guarded preset overwrite/load behavior.
-- ComfyUI LoRA bulk tools: filtered multi-select/toggle, shared model/CLIP weight apply, enable/disable all, injection order controls, and copy/export/import selections.
-- ComfyUI LoRA injection tracing: targets the sampler's actual MODEL path, defaults to stable MODEL-only injection when available, can switch to MODEL+CLIP, supports per-LoRA trigger words, strict injection checks, and final workflow debug export.
-- SillyTavern `/proxy` based request compatibility for cross-origin API calls.
-- Optional direct-connection mode that bypasses the SillyTavern proxy (requires CORS enabled on ComfyUI/WebUI) to avoid backend log spam.
-- WebSocket-based ComfyUI result retrieval, with HTTP polling and preview frames as fallbacks.
-- Cancel/interrupt button for in-progress generation.
+- 支持 ComfyUI 和 Stable Diffusion WebUI 两种后端模式。
+- 默认手动连接，未使用时不会持续轮询 ComfyUI/WebUI。
+- AI 优先的 RP 生图流程：助手消息下方会出现 `AI生图` / `AI提示词` 操作，可分析最近聊天、缓存可编辑提示词、默认隐藏提示词内容，并把结果发送到当前生图后端。
+- `AI/LLM管理` 支持使用 SillyTavern 当前 LLM，也支持 OpenAI-compatible API 和原生 Anthropic API 作为独立绘图分析模型。
+- 支持 OpenAI-compatible `/models` 自动/手动模型检测；Anthropic 原生 API 可手动填写模型。
+- 支持外部 LLM 思考模式配置，可按 OpenAI、Anthropic、DeepSeek 风格注入不同的推理参数。
+- 支持绘图分析规则预设，适合保存 Danbooru 标签规则、FLUX/自然语言规则等多套提示词模板。
+- 支持本地 API Key 列表，可自命名、多密钥保存和快速套用；API Key 不会随插件配置导出。
+- 聊天消息里的生图按钮会显示分析中、生成中、成功、失败等状态，并在长任务中防止重复点击。
+- 支持助手回复稳定后自动分析提示词，或自动分析并直接生图。
+- 保留旧式 `[开始生成]... [结束生成]` 标记扫描作为兼容路径。
+- 支持 ComfyUI API-format 工作流校验。
+- 支持插件设置完整导出/导入。
+- 支持工作流 JSON 格式化、压缩、复制、占位符插入和基础分析。
+- 支持提示词预设、绘图规则预设、LoRA 预设、图片缓存、img2img 等管理界面。
+- ComfyUI LoRA 支持批量选择、过滤选择、权重批量应用、启用/禁用、排序、复制/导出/导入选择。
+- ComfyUI LoRA 注入会追踪采样器实际 MODEL 路径，默认使用稳定的 MODEL-only 注入，也可切换 MODEL+CLIP，并支持触发词、严格检查和最终工作流调试导出。
+- 支持通过 SillyTavern `/proxy` 解决跨域请求。
+- 支持可选直连模式，绕过 SillyTavern 代理以减少后端日志噪声；需要 ComfyUI/WebUI 开启 CORS。
+- ComfyUI 结果获取优先使用 WebSocket 完成事件，并带有 HTTP history 轮询和预览帧兜底。
+- 支持生成中的取消/中断按钮。
 
-## Install
+## 安装
 
-Clone this private repository into SillyTavern's third-party extension directory:
+把仓库克隆到 SillyTavern 的第三方扩展目录：
 
 ```bash
 cd SillyTavern/public/scripts/extensions/third-party
 git clone <your-private-repo-url> ST-ComfyUI-WebUI-Helper
 ```
 
-Then restart SillyTavern and enable the extension from the Extensions panel.
+然后重启 SillyTavern，在扩展面板中启用本插件。
 
-## Local Checks
+## 使用提示
 
-No build step is required. Run syntax checks with:
+- 如果主要使用 RP 场景生图，建议优先使用 `AI/LLM管理` 里的独立绘图分析功能，而不是要求主 RP 模型在正文末尾输出绘图提示词。
+- 如果使用 Danbooru 标签规则，建议把响应长度调高；插件会自动给 Danbooru 规则分配更高输出预算，减少 `finish_reason=length` 截断。
+- 如果外部 LLM 的思考模式导致接口报错，可先把“思考模式”设为“关闭/默认”，确认普通请求可用后再按渠道选择 OpenAI、Anthropic 或 DeepSeek 策略。
+- ComfyUI 工作流里建议使用 `%prompt%`、`%negative_prompt%`、`%width%`、`%height%`、`%seed%`、`%steps%`、`%cfg%`、`%sampler%`、`%scheduler%` 等占位符。
+- API Key 列表保存在本地浏览器/脚本存储中，不会进入设置导出文件。
+
+## 本地检查
+
+本项目不需要构建步骤。语法检查：
 
 ```bash
 npm run check
 ```
 
-Or directly:
+也可以分别运行：
 
 ```bash
 node --check index.js
@@ -64,27 +75,27 @@ node --check ui/panel-elements.js
 node --check ui/panel-position.js
 ```
 
-## Structure
+## 目录结构
 
 ```text
 features/
-  connection-session.js      Connection status and manual session checks
-  manual-scan.js             Scan on/off and manual scan controller
-  workflow-validation.js     ComfyUI workflow validation
+  connection-session.js      连接状态与手动会话检查
+  manual-scan.js             手动扫描控制
+  workflow-validation.js     ComfyUI 工作流校验
 lib/
-  tampermonkey-compat.js     Migrated userscript compatibility helpers
+  tampermonkey-compat.js     用户脚本兼容辅助
 ui/
-  panel-template.js          Panel HTML template
-  panel-styles.js            Panel CSS template
-  panel-elements.js          Panel DOM element lookup
-  panel-position.js          Panel drag and saved-position behavior
-index.js                     Extension entry point and main generation logic
-manifest.json                SillyTavern extension manifest
-style.css                    Placeholder; main styles are injected by JS
+  panel-template.js          面板 HTML 模板
+  panel-styles.js            面板样式
+  panel-elements.js          面板 DOM 查询
+  panel-position.js          面板拖拽与位置保存
+index.js                     插件入口与主要生图逻辑
+manifest.json                SillyTavern 扩展清单
+style.css                    占位样式文件，主要样式由 JS 注入
 ```
 
-## Notes
+## 备注
 
-- Keep `manifest.json` as the extension entry point unless SillyTavern changes its extension loader behavior.
-- After creating the private GitHub repository, update `manifest.json` `homePage` if you want it to point at your own repo.
-- This project is private/internal unless you explicitly add a public license.
+- 除非 SillyTavern 改变扩展加载方式，否则请保留 `manifest.json` 作为扩展入口。
+- 如果仓库地址变化，可以同步更新 `manifest.json` 的 `homePage`。
+- 本项目默认作为私有/内部插件使用，除非你显式添加公开许可证。
