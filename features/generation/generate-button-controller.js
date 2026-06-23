@@ -23,6 +23,11 @@ export function createGenerateButtonController({
 }) {
     const generateThrottle = new Map();
 
+    function getGeneratedImageContainer(group) {
+        return group.closest('.comfy-ai-prompt-panel')?.querySelector('.comfy-ai-prompt-image-slot .comfy-image-container')
+            || group.nextElementSibling;
+    }
+
     async function onGenerateButtonClick(event) {
         const button = event.target.closest('.comfy-chat-generate-button');
         const group = button.closest('.comfy-button-group');
@@ -73,7 +78,7 @@ export function createGenerateButtonController({
         if (oldCompare) oldCompare.remove();
         const oldActions = group.parentElement?.querySelector('.comfy-compare-actions');
         if (oldActions) oldActions.remove();
-        const oldContainer = group.nextElementSibling;
+        const oldContainer = getGeneratedImageContainer(group);
         if (oldContainer?.classList.contains('comfy-image-container')) oldContainer.remove();
 
         progressTracker.createUI(group);
@@ -128,7 +133,7 @@ export function createGenerateButtonController({
             }
 
             if (comparisonEnabled && comparisonMode.oldImageSrc) {
-                const newImg = group.nextElementSibling?.querySelector('img');
+                const newImg = getGeneratedImageContainer(group)?.querySelector('img');
                 if (newImg?.src) comparisonMode.show(group, newImg.src);
             }
 
@@ -184,7 +189,7 @@ export function createGenerateButtonController({
             delBtn.addEventListener('click', async () => {
                 await deleteImageFromCache(id);
                 group.classList.remove('comfy-buttons-hidden');
-                group.nextElementSibling?.remove();
+                getGeneratedImageContainer(group)?.remove();
                 newBtn.textContent = '开始生成';
                 delBtn.remove();
             });
@@ -194,7 +199,7 @@ export function createGenerateButtonController({
         const hideButtons = await getValue('comfyui_hide_buttons', DEFAULT_SETTINGS.hideButtons);
         if (hideButtons) {
             group.classList.add('comfy-buttons-hidden');
-            const imgContainer = group.nextElementSibling;
+            const imgContainer = getGeneratedImageContainer(group);
             if (imgContainer?.classList.contains('comfy-image-container')) {
                 imgContainer.querySelectorAll('img').forEach(img => {
                     if (img.dataset.dblClickBound) return;

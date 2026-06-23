@@ -37,17 +37,17 @@ export function getAiPromptEditorPrompt(panel, fallbackPrompt = '') {
 }
 
 export function toggleAiPromptEditor(panel) {
+    const drawer = panel?.querySelector('.comfy-ai-prompt-drawer');
     const editor = panel?.querySelector('.comfy-ai-prompt-editor');
-    if (!editor) return false;
+    const target = drawer || editor;
+    if (!target) return false;
 
-    const willOpen = editor.hasAttribute('hidden');
-    editor.toggleAttribute('hidden', !willOpen);
+    const willOpen = target.hasAttribute('hidden');
+    target.toggleAttribute('hidden', !willOpen);
     panel.dataset.editorOpen = willOpen ? 'true' : 'false';
     panel.querySelectorAll('[data-action="toggle-edit"]').forEach(toggle => {
         toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-        if (!toggle.classList.contains('comfy-ai-prompt-summary')) {
-            toggle.textContent = willOpen ? '收起编辑' : '编辑提示词';
-        }
+        toggle.textContent = willOpen ? '收起提示词' : '绘画提示词';
     });
     if (willOpen) {
         requestAnimationFrame(() => editor.querySelector('.comfy-ai-prompt-textarea')?.focus());
@@ -70,18 +70,23 @@ export function renderAiPromptReadyPanel({
             <span>AI 绘图</span>
             <span class="comfy-ai-prompt-status">提示词已准备</span>
         </div>
-        <button type="button" class="comfy-ai-prompt-summary comfy-ai-prompt-action" data-action="toggle-edit" aria-expanded="${isEditorOpen ? 'true' : 'false'}" title="点击查看或编辑完整提示词">${escapeHTML(summary)}</button>
-        <div class="comfy-ai-prompt-editor" ${isEditorOpen ? '' : 'hidden'}>
-            <textarea class="comfy-ai-prompt-textarea" spellcheck="false">${escapeHTML(prompt)}</textarea>
-        </div>
         <div class="comfy-ai-prompt-actions">
             ${buildGenerateButtonGroup(prompt, messageId, 'ai_prompt')}
-            <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="quick">重写并生成</button>
-            <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="rewrite">重写提示词</button>
-            <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="toggle-edit" aria-expanded="${isEditorOpen ? 'true' : 'false'}">${isEditorOpen ? '收起编辑' : '编辑提示词'}</button>
-            <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="save">保存编辑</button>
-            <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="copy">复制</button>
-            <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="clear">清除</button>
+            <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="toggle-edit" aria-expanded="${isEditorOpen ? 'true' : 'false'}">${isEditorOpen ? '收起提示词' : '绘画提示词'}</button>
+        </div>
+        <div class="comfy-ai-prompt-image-slot"></div>
+        <div class="comfy-ai-prompt-drawer" ${isEditorOpen ? '' : 'hidden'}>
+            <button type="button" class="comfy-ai-prompt-summary comfy-ai-prompt-action" data-action="toggle-edit" aria-expanded="${isEditorOpen ? 'true' : 'false'}" title="点击收起绘画提示词">${escapeHTML(summary)}</button>
+            <div class="comfy-ai-prompt-editor">
+                <textarea class="comfy-ai-prompt-textarea" spellcheck="false">${escapeHTML(prompt)}</textarea>
+            </div>
+            <div class="comfy-ai-prompt-tools">
+                <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="quick">重写并生成</button>
+                <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="rewrite">重写提示词</button>
+                <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="save">保存编辑</button>
+                <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="copy">复制</button>
+                <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="clear">清除提示词</button>
+            </div>
         </div>
     `;
 }
@@ -97,5 +102,6 @@ export function renderAiPromptEmptyPanel(panel) {
             <button type="button" class="comfy-button comfy-ai-prompt-action primary" data-action="quick">AI生图</button>
             <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="generate">AI提示词</button>
         </div>
+        <div class="comfy-ai-prompt-image-slot"></div>
     `;
 }

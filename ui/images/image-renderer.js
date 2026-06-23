@@ -6,6 +6,17 @@ export function createImageRenderer({
     logger = console,
 }) {
     function getOrCreateImageContainer(anchorElement) {
+        const aiPromptSlot = anchorElement.closest('.comfy-ai-prompt-panel')?.querySelector('.comfy-ai-prompt-image-slot');
+        if (aiPromptSlot) {
+            let container = aiPromptSlot.querySelector('.comfy-image-container');
+            if (!container) {
+                container = document.createElement('span');
+                container.className = 'comfy-image-container';
+                aiPromptSlot.appendChild(container);
+            }
+            return container;
+        }
+
         let container = anchorElement.nextElementSibling;
         if (!container || !container.classList.contains('comfy-image-container')) {
             container = document.createElement('span');

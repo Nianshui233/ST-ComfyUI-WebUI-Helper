@@ -36,7 +36,7 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
         .comfy-ai-prompt-summary {
             display: inline-flex;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             max-width: 100%;
             box-sizing: border-box;
             padding: 6px 9px;
@@ -67,9 +67,26 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
             border-color: var(--vp-accent-border);
             background: var(--vp-accent-soft);
         }
+        .comfy-ai-prompt-image-slot {
+            display: block;
+            width: 100%;
+            clear: both;
+        }
+        .comfy-ai-prompt-image-slot:empty { display: none; }
+        .comfy-ai-prompt-drawer {
+            box-sizing: border-box;
+            width: 100%;
+            margin-top: 8px;
+            padding: 8px;
+            border: 1px solid rgba(102, 215, 199, 0.18);
+            border-radius: var(--vp-radius-md);
+            background: rgba(7, 9, 11, 0.22);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+        }
+        .comfy-ai-prompt-drawer[hidden] { display: none !important; }
+        .comfy-ai-prompt-drawer .comfy-ai-prompt-summary { width: 100%; }
         .comfy-ai-prompt-editor { margin-top: 6px; }
         .comfy-ai-prompt-editor[hidden] { display: none !important; }
-        .comfy-ai-prompt-editor[hidden] + .comfy-ai-prompt-actions [data-action="save"] { display: none; }
         .comfy-ai-prompt-textarea {
             width: 100%;
             min-height: 76px;
@@ -86,10 +103,29 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
         }
         .comfy-ai-prompt-textarea:focus { outline: none; border-color: var(--vp-accent-color); box-shadow: 0 0 0 3px var(--vp-glow-color); }
         .comfy-ai-prompt-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+        .comfy-ai-prompt-actions > .comfy-button-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin: 0;
+        }
         .comfy-ai-prompt-actions .comfy-button,
-        .comfy-ai-prompt-actions .comfy-chat-generate-button { padding: 6px 10px; font-size: 12px; min-height: 32px; }
+        .comfy-ai-prompt-actions .comfy-chat-generate-button,
+        .comfy-ai-prompt-tools .comfy-button { padding: 6px 10px; font-size: 12px; min-height: 32px; }
+        .comfy-ai-prompt-actions .comfy-button,
+        .comfy-ai-prompt-actions .comfy-chat-generate-button { white-space: nowrap; }
+        .comfy-ai-prompt-actions .comfy-delete-button { order: 2; }
+        .comfy-ai-prompt-actions [data-action="toggle-edit"] { order: 3; }
+        .comfy-ai-prompt-tools {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            margin-top: 8px;
+        }
         .comfy-ai-prompt-panel.is-busy .comfy-ai-prompt-actions .comfy-button:disabled,
-        .comfy-ai-prompt-panel.is-busy .comfy-ai-prompt-actions .comfy-chat-generate-button:disabled { opacity: 0.58; }
+        .comfy-ai-prompt-panel.is-busy .comfy-ai-prompt-actions .comfy-chat-generate-button:disabled,
+        .comfy-ai-prompt-panel.is-busy .comfy-ai-prompt-tools .comfy-button:disabled { opacity: 0.58; }
         .comfy-ai-prompt-actions .comfy-ai-prompt-action.primary {
             color: #101417;
             border-color: var(--vp-accent-color);
@@ -223,6 +259,10 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
             #${panelId} .img2img-preview-card img { width: 100%; height: auto; max-height: 180px; }
             #${panelId} .cache-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); max-height: 52vh; }
             #${panelId} .tab-content { padding: 14px 14px env(safe-area-inset-bottom, 20px); }
+            .comfy-ai-prompt-actions { display: grid; grid-template-columns: 1fr; align-items: stretch; }
+            .comfy-ai-prompt-actions > .comfy-button-group { display: grid; grid-template-columns: 1fr; }
+            .comfy-ai-prompt-actions .comfy-button,
+            .comfy-ai-prompt-actions .comfy-chat-generate-button { width: 100%; }
         }
 
         @media (max-width: 480px) {
