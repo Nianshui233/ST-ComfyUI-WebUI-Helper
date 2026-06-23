@@ -54,30 +54,40 @@ Or directly:
 
 ```bash
 node --check index.js
-node --check lib/tampermonkey-compat.js
-node --check features/connection-session.js
-node --check features/manual-scan.js
-node --check features/workflow-validation.js
-node --check ui/panel-template.js
-node --check ui/panel-styles.js
-node --check ui/panel-elements.js
-node --check ui/panel-position.js
+# Or inspect the package.json check script for the complete module list.
 ```
 
 ## Structure
 
 ```text
 features/
-  connection-session.js      Connection status and manual session checks
-  manual-scan.js             Scan on/off and manual scan controller
-  workflow-validation.js     ComfyUI workflow validation
+  ai-prompt/                Independent AI/LLM prompt analysis, rule presets, API keys, and model detection
+  app/                      App composition, runtime, lifecycle, and feature stacks
+  cache/                    Generated-image cache saving, grid view, and preview
+  chat/                     Chat scanning, message actions, and message runtime state
+  comfyui/                  ComfyUI generation helpers, result parsing, and resource reads
+    lora/                   ComfyUI LoRA list, selection, triggers, and workflow injection
+  core/                     Runtime config, connection sessions, validators, and object cache
+  generation/               ComfyUI/WebUI generation orchestration, button state, and img2img
+  panel/                    Settings panel controller, listeners, mode switching, and parameter UI
+  progress/                 Generation progress, preview frames, and execution state
+  resources/                Model, LoRA, embedding, and sampler resource services
+  settings/                 Settings persistence, backup import/export, and preset management
+  webui/                    Stable Diffusion WebUI generation and resource services
+  workflow/                 Workflow management, validation, debugging, and placeholder conversion
 lib/
-  tampermonkey-compat.js     Migrated userscript compatibility helpers
+  browser/                  Blob URL and userscript compatibility helpers
+  core/                     Shared utility functions
+  http/                     HTTP request wrapper and retry helper
+  prompt/                   SD prompt parsing, merging, and validation
+  storage/                  Image cache IndexedDB wrapper
 ui/
-  panel-template.js          Panel HTML template
-  panel-styles.js            Panel CSS template
-  panel-elements.js          Panel DOM element lookup
-  panel-position.js          Panel drag and saved-position behavior
+  core/                     Device detection and toast UI
+  images/                   Image rendering, hover preview, and comparison mode
+  panel/                    Panel template aggregation, style aggregation, DOM lookup, and drag position
+  presets/                  Shared preset and local selection-list UI factories
+  styles/                   Panel CSS split by feature area
+  templates/                Panel HTML split by tab
 index.js                     Extension entry point and main generation logic
 manifest.json                SillyTavern extension manifest
 style.css                    Placeholder; main styles are injected by JS

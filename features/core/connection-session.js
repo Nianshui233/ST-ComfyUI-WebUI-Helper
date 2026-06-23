@@ -14,7 +14,7 @@ export function createConnectionMonitor({ getCurrentMode, modes, getValue, makeR
                     ? (await getValue('comfyui_url', '')).trim()
                     : (await getValue('webui_url', '')).trim();
                 if (!url) {
-                    this.setStatus('disconnected', '未配置URL');
+                    this.setStatus('disconnected', '未配置 URL');
                     return;
                 }
                 const endpoint = currentMode === modes.COMFYUI

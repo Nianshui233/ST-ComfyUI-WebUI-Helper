@@ -65,30 +65,40 @@ npm run check
 
 ```bash
 node --check index.js
-node --check lib/tampermonkey-compat.js
-node --check features/connection-session.js
-node --check features/manual-scan.js
-node --check features/workflow-validation.js
-node --check ui/panel-template.js
-node --check ui/panel-styles.js
-node --check ui/panel-elements.js
-node --check ui/panel-position.js
+# 或查看 package.json 里的 check 脚本，里面列出了全部模块。
 ```
 
 ## 目录结构
 
 ```text
 features/
-  connection-session.js      连接状态与手动会话检查
-  manual-scan.js             手动扫描控制
-  workflow-validation.js     ComfyUI 工作流校验
+  ai-prompt/                独立 AI/LLM 绘图分析、规则预设、API Key 与模型检测
+  app/                      插件组装、运行时、生命周期与各功能栈
+  cache/                    生成图片缓存保存、列表与预览
+  chat/                     聊天扫描、消息按钮与消息运行状态
+  comfyui/                  ComfyUI 生成辅助、结果解析与资源读取
+    lora/                   ComfyUI LoRA 列表、选择、触发词与工作流注入
+  core/                     运行配置、连接会话、输入校验与对象缓存
+  generation/               ComfyUI/WebUI 生成编排、按钮状态与 img2img
+  panel/                    设置面板控制器、监听器、模式切换与参数 UI
+  progress/                 生成进度、预览帧与执行状态
+  resources/                模型/LoRA/Embedding 等资源加载服务
+  settings/                 配置读写、备份导入导出与预设管理
+  webui/                    Stable Diffusion WebUI 生成与资源服务
+  workflow/                 工作流管理、校验、调试、占位符转换
 lib/
-  tampermonkey-compat.js     用户脚本兼容辅助
+  browser/                  Blob URL 与用户脚本兼容辅助
+  core/                     通用工具函数
+  http/                     HTTP 请求封装与重试
+  prompt/                   SD 提示词解析、合并与校验
+  storage/                  图片缓存 IndexedDB 封装
 ui/
-  panel-template.js          面板 HTML 模板
-  panel-styles.js            面板样式
-  panel-elements.js          面板 DOM 查询
-  panel-position.js          面板拖拽与位置保存
+  core/                     设备检测与 toast
+  images/                   图片渲染、悬浮预览与对比模式
+  panel/                    面板模板聚合、样式聚合、DOM 查询与拖拽位置
+  presets/                  预设与本地选择列表通用 UI 工厂
+  styles/                   按区域拆分的面板样式
+  templates/                按标签页拆分的面板 HTML 模板
 index.js                     插件入口与主要生图逻辑
 manifest.json                SillyTavern 扩展清单
 style.css                    占位样式文件，主要样式由 JS 注入
