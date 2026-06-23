@@ -3,7 +3,7 @@
   "version": "5.4.0",
   "private": true,
   "type": "module",
-  "description": "Private SillyTavern extension for ComfyUI/WebUI image generation.",
+  "description": "SillyTavern extension for ComfyUI/WebUI image generation.",
   "scripts": {
     "check": "node scripts/check-js.mjs"
   },

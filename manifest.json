@@ -7,7 +7,7 @@
     "css": "",
     "author": "白大瑾",
     "version": "5.4.0",
-    "homePage": "https://github.com/SillyTavern/SillyTavern",
+    "homePage": "https://github.com/Nianshui233/ST-ComfyUI-WebUI-Helper",
     "auto_update": false,
     "hooks": {
         "activate": "init"
