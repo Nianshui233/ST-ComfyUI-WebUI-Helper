@@ -30,14 +30,13 @@ export function createPanelApiListeners({
         const disconnect = () => {
             connectionMonitor.destroy();
             connectionMonitor.setStatus('disconnected', '已断开');
-            manualScan.stop();
-            showToast('info', '已断开，扫描已停止');
+            showToast('info', '后端连接状态已断开，聊天区插件仍由总开关控制');
         };
 
-        buttons.disconnect.addEventListener('click', disconnect);
-        buttons.webuiDisconnect.addEventListener('click', disconnect);
+        buttons.disconnect?.addEventListener('click', disconnect);
+        buttons.webuiDisconnect?.addEventListener('click', disconnect);
 
-        buttons.scanChat.addEventListener('click', async () => {
+        buttons.scanChat?.addEventListener('click', async () => {
             if (!manualScan.hasControls()) {
                 showToast('error', '扫描系统未就绪');
                 return;
@@ -65,7 +64,6 @@ export function createPanelApiListeners({
                 testButton.className = 'comfy-button success';
                 showToast('success', '连接成功');
                 connectionMonitor.start();
-                manualScan.start();
                 await successCallback(url, inputs);
             } catch (error) {
                 testButton.className = 'comfy-button error';
@@ -75,7 +73,7 @@ export function createPanelApiListeners({
             }
         };
 
-        buttons.test.addEventListener('click', createTestConnectionHandler(inputs.url, buttons.test, async (url, inputs) => {
+        buttons.test?.addEventListener('click', createTestConnectionHandler(inputs.url, buttons.test, async (url, inputs) => {
             await Promise.all([
                 fetchAndPopulateModels(url, inputs.modelSelect, false),
                 fetchAndPopulateUNetModels(url, inputs.unetSelect, false),
@@ -84,7 +82,7 @@ export function createPanelApiListeners({
             ]);
         }));
 
-        buttons.webuiTest.addEventListener('click', createTestConnectionHandler(inputs.webuiUrl, buttons.webuiTest, async (url, inputs) => {
+        buttons.webuiTest?.addEventListener('click', createTestConnectionHandler(inputs.webuiUrl, buttons.webuiTest, async (url, inputs) => {
             await Promise.all([
                 fetchAndPopulateWebUIModels(url, inputs.webuiModelSelect, false),
                 fetchAndPopulateWebUILoras(url, false),
@@ -99,7 +97,7 @@ export function createPanelApiListeners({
             else showToast('warning', warningMessage);
         };
 
-        buttons.refreshModels.addEventListener('click', handleApiAction(
+        buttons.refreshModels?.addEventListener('click', handleApiAction(
             inputs.url,
             url => Promise.all([
                 fetchAndPopulateModels(url, inputs.modelSelect, false),
@@ -108,13 +106,13 @@ export function createPanelApiListeners({
             '请先输入 ComfyUI URL',
         ));
 
-        buttons.refreshUnets.addEventListener('click', handleApiAction(
+        buttons.refreshUnets?.addEventListener('click', handleApiAction(
             inputs.url,
             url => fetchAndPopulateUNetModels(url, inputs.unetSelect, false),
             '请先输入 ComfyUI URL',
         ));
 
-        buttons.webuiRefreshModels.addEventListener('click', handleApiAction(
+        buttons.webuiRefreshModels?.addEventListener('click', handleApiAction(
             inputs.webuiUrl,
             url => Promise.all([
                 fetchAndPopulateWebUIModels(url, inputs.webuiModelSelect, false),
@@ -123,9 +121,9 @@ export function createPanelApiListeners({
             '请先输入 WebUI URL',
         ));
 
-        buttons.webuiRefreshLoras.addEventListener('click', handleApiAction(inputs.webuiUrl, url => fetchAndPopulateWebUILoras(url, false), '请先输入 WebUI URL'));
-        buttons.webuiRefreshEmbeddings.addEventListener('click', handleApiAction(inputs.webuiUrl, url => fetchAndPopulateWebUIEmbeddings(url, false), '请先输入 WebUI URL'));
-        buttons.comfyuiRefreshLorasList.addEventListener('click', handleApiAction(inputs.url, url => fetchAndPopulateComfyUILoras(url, false), '请先输入 ComfyUI URL'));
+        buttons.webuiRefreshLoras?.addEventListener('click', handleApiAction(inputs.webuiUrl, url => fetchAndPopulateWebUILoras(url, false), '请先输入 WebUI URL'));
+        buttons.webuiRefreshEmbeddings?.addEventListener('click', handleApiAction(inputs.webuiUrl, url => fetchAndPopulateWebUIEmbeddings(url, false), '请先输入 WebUI URL'));
+        buttons.comfyuiRefreshLorasList?.addEventListener('click', handleApiAction(inputs.url, url => fetchAndPopulateComfyUILoras(url, false), '请先输入 ComfyUI URL'));
 
         buttons.aiPromptDetectModels?.addEventListener('click', async () => {
             const originalHtml = buttons.aiPromptDetectModels.innerHTML;

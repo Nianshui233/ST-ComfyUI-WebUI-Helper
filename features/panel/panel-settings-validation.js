@@ -11,6 +11,11 @@ export function validatePanelSettings({ inputValidators, showToast }) {
         errors.push('WebUI URL格式错误');
     }
 
+    const apiImageUrl = document.getElementById('comfyui-api-image-url')?.value.trim();
+    if (apiImageUrl && !inputValidators.url(apiImageUrl)) {
+        errors.push('API 生图 Base URL格式错误');
+    }
+
     const width = document.getElementById('comfyui-gen-width').value;
     const height = document.getElementById('comfyui-gen-height').value;
 

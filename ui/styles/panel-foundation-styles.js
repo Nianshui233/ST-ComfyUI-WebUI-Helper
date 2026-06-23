@@ -42,6 +42,7 @@ export function getPanelFoundationStyles({ panelId, buttonId }) {
             --vp-warning-color: #e9b44c;
             --vp-comfyui-color: #66d7c7;
             --vp-webui-color: #e9b44c;
+            --vp-api-color: #9cc7ff;
 
             --vp-font: 'Segoe UI Variable', 'Microsoft YaHei UI', 'Segoe UI', 'Roboto', system-ui, sans-serif;
 
@@ -170,6 +171,93 @@ export function getPanelFoundationStyles({ panelId, buttonId }) {
             text-overflow: ellipsis;
         }
 
+        #${panelId} .panel-header-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--vp-space-2);
+            flex-shrink: 0;
+        }
+
+        #${panelId} .helper-master-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 174px;
+            height: 38px;
+            padding: 5px 11px 5px 8px;
+            cursor: pointer;
+            color: var(--vp-text-muted);
+            border: 1px solid var(--vp-border-color);
+            border-radius: var(--vp-radius-md);
+            background: rgba(255, 255, 255, 0.035);
+            transition: color var(--vp-dur-fast), border-color var(--vp-dur-fast), background var(--vp-dur-fast), box-shadow var(--vp-dur-fast);
+        }
+
+        #${panelId} .helper-master-toggle:hover {
+            color: var(--vp-text-color);
+            border-color: var(--vp-border-strong);
+            background: rgba(255, 255, 255, 0.055);
+        }
+
+        #${panelId} .helper-master-toggle:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px var(--vp-glow-color);
+        }
+
+        #${panelId} .helper-toggle-track {
+            position: relative;
+            width: 34px;
+            height: 18px;
+            flex: 0 0 auto;
+            border-radius: var(--vp-radius-pill);
+            background: rgba(255, 111, 97, 0.22);
+            border: 1px solid rgba(255, 111, 97, 0.35);
+            transition: background var(--vp-dur-fast), border-color var(--vp-dur-fast);
+        }
+
+        #${panelId} .helper-toggle-knob {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 12px;
+            height: 12px;
+            border-radius: var(--vp-radius-pill);
+            background: #f5d3ce;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.42);
+            transition: transform var(--vp-dur-fast) var(--vp-ease), background var(--vp-dur-fast);
+        }
+
+        #${panelId} .helper-master-toggle.is-on .helper-toggle-track {
+            background: rgba(102, 215, 199, 0.24);
+            border-color: var(--vp-accent-border);
+        }
+
+        #${panelId} .helper-master-toggle.is-on .helper-toggle-knob {
+            transform: translateX(16px);
+            background: var(--vp-accent-strong);
+        }
+
+        #${panelId} .helper-toggle-copy {
+            display: grid;
+            gap: 1px;
+            min-width: 0;
+            text-align: left;
+        }
+
+        #${panelId} .helper-toggle-copy b {
+            font-size: 12px;
+            line-height: 1.05;
+            font-weight: 750;
+            color: var(--vp-text-color);
+        }
+
+        #${panelId} .helper-toggle-copy small {
+            font-size: 10px;
+            line-height: 1.1;
+            color: var(--vp-text-dim);
+            white-space: nowrap;
+        }
+
         #${panelId} .floating_panel_close {
             display: inline-flex;
             align-items: center;
@@ -228,7 +316,7 @@ export function getPanelFoundationStyles({ panelId, buttonId }) {
 
         #${panelId} .mode-switch {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 3px;
             width: 100%;
             padding: 3px;
@@ -265,6 +353,12 @@ export function getPanelFoundationStyles({ panelId, buttonId }) {
             color: #171207;
             background: var(--vp-warning-color);
             box-shadow: 0 4px 16px rgba(233, 180, 76, 0.22);
+        }
+
+        #${panelId} .mode-switch-option.active.api {
+            color: #07111e;
+            background: var(--vp-api-color);
+            box-shadow: 0 4px 16px rgba(156, 199, 255, 0.22);
         }
 
         #${panelId} .mode-status {
@@ -370,6 +464,7 @@ export function getPanelFoundationStyles({ panelId, buttonId }) {
         #${panelId} .tab-content:not(.active) { display: none !important; }
         #${panelId} .tab-content.comfyui-settings.hidden { display: none !important; }
         #${panelId} .tab-content.webui-settings:not(.active) { display: none !important; }
+        #${panelId} .tab-content.api-settings:not(.active) { display: none !important; }
 
         /* ---------- Form controls ---------- */
         #${panelId} input[type="text"],

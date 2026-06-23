@@ -1,5 +1,6 @@
 import { createConnectionMonitor } from '../core/connection-session.js';
 import { createEmbeddingController } from '../resources/embedding-controller.js';
+import { createHelperActivationController } from '../core/helper-activation.js';
 import { createImg2ImgController } from '../generation/img2img-controller.js';
 import { createManualScanController } from '../chat/manual-scan.js';
 import { createMessageRuntime } from '../chat/message-runtime.js';
@@ -37,6 +38,13 @@ export function createAppRuntime({
     const getCachedObjectInfo = createObjectInfoCache({ makeRequest, safeJsonParse });
     const manualScan = createManualScanController();
     const messageRuntime = createMessageRuntime({ logger: appLogger });
+    const helperActivation = createHelperActivationController({
+        getValue,
+        setValue,
+        manualScan,
+        showToast,
+        logger: appLogger,
+    });
 
     const connectionMonitor = createConnectionMonitor({
         getCurrentMode,
@@ -61,6 +69,7 @@ export function createAppRuntime({
         embeddingController,
         getCachedObjectInfo,
         getStoredValues,
+        helperActivation,
         imageCacheDB,
         img2imgController,
         logger: appLogger,

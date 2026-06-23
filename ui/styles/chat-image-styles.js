@@ -9,6 +9,16 @@ export function getChatImageStyles({ panelId, buttonId }) {
             overflow: hidden;
             clear: both;
         }
+
+        body.comfy-helper-paused .comfy-ai-prompt-panel,
+        body.comfy-helper-paused .comfy-button-group,
+        body.comfy-helper-paused .comfy-image-container,
+        body.comfy-helper-paused .comfy-progress-container,
+        body.comfy-helper-paused .comfy-compare-container,
+        body.comfy-helper-paused .comfy-compare-actions {
+            display: none !important;
+            pointer-events: none !important;
+        }
         .comfy-image-container img {
             display: block;
             width: 100%;
@@ -38,6 +48,52 @@ export function getChatImageStyles({ panelId, buttonId }) {
         }
         .comfy-progress-text { margin-top: 2px; text-align: center; color: var(--vp-text-muted); font-size: 11px; }
         .comfy-cancel-button { display: block; margin: 6px auto 0; padding: 2px 12px; font-size: 12px; min-height: 0; }
+        .comfy-api-telemetry {
+            margin-top: var(--vp-space-2);
+            padding: 9px 10px;
+            color: var(--vp-text-muted);
+            font-size: 11px;
+            line-height: 1.35;
+            border: 1px solid rgba(156, 199, 255, 0.22);
+            border-radius: var(--vp-radius-md);
+            background: linear-gradient(135deg, rgba(156, 199, 255, 0.08), rgba(255, 255, 255, 0.025));
+        }
+        .comfy-api-telemetry[hidden] { display: none !important; }
+        .comfy-api-telemetry-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--vp-space-2);
+            margin-bottom: 7px;
+        }
+        .comfy-api-telemetry-head b {
+            min-width: 0;
+            overflow: hidden;
+            color: var(--vp-text-color);
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .comfy-api-telemetry-head span {
+            flex-shrink: 0;
+            color: var(--vp-api-color, #9cc7ff);
+            font-variant-numeric: tabular-nums;
+        }
+        .comfy-api-telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 6px;
+        }
+        .comfy-api-telemetry-grid span {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .comfy-api-telemetry-grid em {
+            margin-right: 4px;
+            color: var(--vp-text-dim);
+            font-style: normal;
+        }
 
         /* ---------- In-chat: metadata tooltip ---------- */
         .comfy-image-tooltip {

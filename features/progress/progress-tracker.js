@@ -14,6 +14,7 @@ import {
     createProgressUI,
     markProgressCancelling,
     removeProgressUI,
+    updateApiTelemetryUI,
     updateProgressUI,
 } from './progress-ui.js';
 
@@ -47,6 +48,10 @@ export function createProgressTracker({
 
         update(progress, statusText) {
             updateProgressUI(this, progress, statusText);
+        },
+
+        updateApiTelemetry(payload) {
+            updateApiTelemetryUI(this, payload);
         },
 
         async capturePreview(payload) {
@@ -153,7 +158,7 @@ export function createProgressTracker({
             markProgressCancelling(this);
             const url = this.activeUrl;
             const mode = this.activeMode;
-            if (url) {
+            if (url && mode !== modes.API) {
                 const endpoint = mode === modes.WEBUI
                     ? `${url}/sdapi/v1/interrupt`
                     : `${url}/interrupt`;
@@ -176,6 +181,12 @@ export function createProgressTracker({
                     this.update(data.progress, `${Math.round(data.progress * 100)}% (ETA: ${data.eta_relative?.toFixed(0) || '?'}s)`);
                 } catch {}
             }, 1500);
+        },
+
+        startApiImage(url) {
+            this.activeUrl = url;
+            this.activeMode = modes.API;
+            this.update(0.08, 'API 生图：准备请求');
         },
 
         stop() {

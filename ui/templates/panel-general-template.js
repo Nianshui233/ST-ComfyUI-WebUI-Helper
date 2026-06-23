@@ -27,7 +27,6 @@ export function getPanelGeneralTemplate({ panelId, modes }) {
 				</div>
 				<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-enable-comparison" type="checkbox" checked><b>图片对比</b><span>- 重新生成时显示新旧图片对比滑块</span></label></div>
 				<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-hide-buttons" type="checkbox"><b>隐藏按钮</b><span>- 生成后隐藏按钮，双击图片重新生成</span></label></div>
-				<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-direct-connection" type="checkbox"><b>直连后端</b><span>- 不经 SillyTavern 代理，避免后端日志刷屏；需 ComfyUI 加 --enable-cors-header / WebUI 加 --cors-allow-origins</span></label></div>
 				<fieldset>
 					<legend>尺寸设置</legend>
 					<div class="comfy-settings-grid" style="margin-bottom: 0;">

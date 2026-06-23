@@ -8,7 +8,16 @@ export function getPanelShellTemplate({ panelId, modes }) {
 				<span>ComfyUI / WebUI / AI Prompt Studio</span>
 			</div>
 		</div>
-		<button type="button" class="floating_panel_close" title="关闭面板"><i class="fa-fw fa-solid fa-circle-xmark"></i></button>
+		<div class="panel-header-actions">
+			<button type="button" id="comfyui-helper-toggle" class="helper-master-toggle is-on" aria-pressed="true" title="开启或暂停聊天区绘图插件">
+				<span class="helper-toggle-track"><span class="helper-toggle-knob"></span></span>
+				<span class="helper-toggle-copy">
+					<b>插件已启用</b>
+					<small>聊天区绘图控件开启</small>
+				</span>
+			</button>
+			<button type="button" class="floating_panel_close" title="关闭面板"><i class="fa-fw fa-solid fa-circle-xmark"></i></button>
+		</div>
 	</div>
 	<div class="comfyui-panel-content">
 		<!-- 模式切换器 -->
@@ -16,6 +25,7 @@ export function getPanelShellTemplate({ panelId, modes }) {
 			<div class="mode-switch">
 				<button class="mode-switch-option active comfyui" data-mode="${modes.COMFYUI}">ComfyUI</button>
 				<button class="mode-switch-option" data-mode="${modes.WEBUI}">WebUI</button>
+				<button class="mode-switch-option api" data-mode="${modes.API}">API</button>
 			</div>
 			<div class="mode-status">当前模式: ComfyUI</div>
 		</div>
@@ -29,6 +39,7 @@ export function getPanelShellTemplate({ panelId, modes }) {
 				<button class="tab-button comfyui-settings" data-tab="workflows"><i class="fa-solid fa-diagram-project"></i><span>工作流管理</span></button>
 				<button class="tab-button webui-settings" data-tab="loras" style="display: none;"><i class="fa-solid fa-layer-group"></i><span>WebUI LoRA</span></button>
 				<button class="tab-button comfyui-settings" data-tab="comfy-loras"><i class="fa-solid fa-layer-group"></i><span>ComfyUI LoRA</span></button>
+				<button class="tab-button api-settings" data-tab="api-image"><i class="fa-solid fa-cloud-arrow-up"></i><span>API 生图</span></button>
 				<button class="tab-button" data-tab="cache"><i class="fa-solid fa-box-archive"></i><span>图片缓存</span></button>
 				<button class="tab-button" data-tab="logs"><i class="fa-solid fa-clipboard-list"></i><span>运行日志</span></button>
 			</div>

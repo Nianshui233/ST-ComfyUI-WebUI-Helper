@@ -27,6 +27,7 @@ export function createPanelController({
     getPanelButtons,
     inputValidators,
     connectionMonitor,
+    helperActivation,
     manualScan,
     img2imgController,
     loadSettings,
@@ -37,6 +38,7 @@ export function createPanelController({
     detectAiPromptModels,
     populateAiPromptModelSelect,
     testAiPromptOpenAICompatibleApi,
+    testApiImageGeneration,
     fetchAndPopulateModels,
     fetchAndPopulateUNetModels,
     fetchAndPopulateWebUIModels,
@@ -82,6 +84,7 @@ export function createPanelController({
     logger = console,
 }) {
     let currentMode = MODES.COMFYUI;
+    let apiImagePanelController = null;
 
     function moveAdvancedSectionsToTab(tabId) {
         moveAdvancedSectionsToPanelTab(tabId, currentMode);
@@ -89,6 +92,7 @@ export function createPanelController({
 
     const {
         initApiListeners,
+        initApiImageListeners,
         initCacheListeners,
         initGeneralListeners,
         initTabListeners,
@@ -101,6 +105,7 @@ export function createPanelController({
         saveSettings,
         detectAiPromptModels,
         testAiPromptOpenAICompatibleApi,
+        testApiImageGeneration,
         fetchAndPopulateModels,
         fetchAndPopulateUNetModels,
         fetchAndPopulateWebUIModels,
@@ -163,12 +168,20 @@ export function createPanelController({
         return currentMode;
     }
 
+    function getModeLabel(mode) {
+        return {
+            [MODES.COMFYUI]: 'ComfyUI',
+            [MODES.WEBUI]: 'WebUI',
+            [MODES.API]: 'API 生图',
+        }[mode] || mode;
+    }
+
     async function switchMode(mode) {
         currentMode = mode;
         await setValue(STORAGE_KEY_MODE, mode);
         updateModeUI();
         onModeChanged?.(mode);
-        showToast('success', `已切换到 ${mode === MODES.COMFYUI ? 'ComfyUI' : 'WebUI'} 模式`);
+        showToast('success', `已切换到 ${getModeLabel(mode)} 模式`);
         connectionMonitor.setStatus('disconnected', '未连接');
     }
 
@@ -203,9 +216,11 @@ export function createPanelController({
         panel.classList.add(`device-${deviceType}`);
 
         initGeneralListeners(panel, buttons, inputs);
+        helperActivation?.bindToggle?.(buttons.helperToggle);
         initTabListeners();
         initWorkflowListeners(buttons, inputs);
         initApiListeners(buttons, inputs);
+        apiImagePanelController = initApiImageListeners(buttons, inputs);
         initPresetManagers(inputs);
         initCacheListeners(buttons);
         initSettingsBackupListeners(buttons, inputs);
@@ -213,6 +228,8 @@ export function createPanelController({
 
         await loadCurrentMode();
         await loadSettings(inputs);
+        helperActivation?.setToggleVisual?.(helperActivation.isEnabled?.() ?? true);
+        apiImagePanelController?.applyProviderDefaults?.();
         panel.updateAiPromptProviderUI?.();
         populateAiPromptModelSelect([], inputs.aiPromptApiModel?.value || '');
         panel.scheduleAiPromptModelDetection?.();

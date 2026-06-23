@@ -8,6 +8,7 @@ import {
     clampBatchSize,
     createWebUIGenerationService,
 } from '../webui/webui-generation-service.js';
+import { createApiImageGenerationService } from '../api-image/api-image-generation-service.js';
 import { validateComfyWorkflow } from '../workflow/workflow-validation.js';
 import {
     getComfyUILoraTriggerPrompt,
@@ -32,6 +33,7 @@ import {
 export function createGenerationService({
     validateSettings,
     getStoredValues,
+    getValue,
     getCachedObjectInfo,
     getEnabledComfyUISelectedLoras,
     getSeedForGeneration,
@@ -60,6 +62,16 @@ export function createGenerationService({
         showToast,
         makeRequest,
         makeRequestWithRetry,
+        logger,
+    });
+    const apiImageGenerationService = createApiImageGenerationService({
+        validateSettings,
+        getValue,
+        getStoredValues,
+        getSeedForGeneration,
+        progressTracker,
+        makeRequestWithRetry,
+        showToast,
         logger,
     });
 
@@ -212,8 +224,18 @@ export function createGenerationService({
         return webuiGenerationService.generateWithWebUI(promptFromChat);
     }
 
+    async function generateWithApiImage(promptFromChat) {
+        return apiImageGenerationService.generateWithApiImage(promptFromChat);
+    }
+
+    async function testApiImageGeneration() {
+        return apiImageGenerationService.testApiImageGeneration();
+    }
+
     return {
+        generateWithApiImage,
         generateWithComfyUI,
         generateWithWebUI,
+        testApiImageGeneration,
     };
 }

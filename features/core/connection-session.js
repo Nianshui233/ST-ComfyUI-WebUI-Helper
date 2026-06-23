@@ -10,6 +10,11 @@ export function createConnectionMonitor({ getCurrentMode, modes, getValue, makeR
             this.setStatus('checking', '检查中...');
             try {
                 const currentMode = getCurrentMode();
+                if (currentMode === modes.API) {
+                    const apiKey = await getValue('comfyui_api_image_api_key', '');
+                    this.setStatus(apiKey ? 'connected' : 'disconnected', apiKey ? 'API Key 已配置' : 'API Key 未配置');
+                    return;
+                }
                 const url = currentMode === modes.COMFYUI
                     ? (await getValue('comfyui_url', '')).trim()
                     : (await getValue('webui_url', '')).trim();

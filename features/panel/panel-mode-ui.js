@@ -8,7 +8,8 @@ export function updatePanelModeUI({
     moveModeSections(currentMode);
     const activeTab = document.querySelector('.tab-button.active');
     if (activeTab && activeTab.style.display === 'none') {
-        document.querySelector('[data-tab="general"]')?.click();
+        const fallbackTab = currentMode === MODES.API ? 'api-image' : 'general';
+        document.querySelector(`[data-tab="${fallbackTab}"]`)?.click();
     } else if (activeTab && ['generation', 'img2img', 'prompts'].includes(activeTab.dataset.tab)) {
         moveAdvancedSectionsToTab(activeTab.dataset.tab, currentMode);
     }
@@ -28,11 +29,13 @@ export function moveAdvancedSectionsToPanelTab(tabId, currentMode) {
     document.querySelectorAll('.advanced-section').forEach(section => {
         const matchesTab = section.classList.contains(targetClass);
         const matchesMode = (
-            !section.classList.contains('comfyui-settings') && !section.classList.contains('webui-settings')
+            !section.classList.contains('comfyui-settings') && !section.classList.contains('webui-settings') && !section.classList.contains('api-settings')
         ) || (
             currentMode === MODES.COMFYUI && section.classList.contains('comfyui-settings')
         ) || (
             currentMode === MODES.WEBUI && section.classList.contains('webui-settings')
+        ) || (
+            currentMode === MODES.API && section.classList.contains('api-settings')
         );
         section.style.display = matchesTab && matchesMode ? '' : 'none';
     });

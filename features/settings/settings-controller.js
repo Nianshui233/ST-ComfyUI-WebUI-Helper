@@ -8,8 +8,27 @@ import {
 } from './settings-backup.js';
 
 const SETTINGS_TO_LOAD = {
+    helperEnabled: ['comfyui_helper_enabled', DEFAULT_SETTINGS.helperEnabled],
     url: ['comfyui_url', DEFAULT_SETTINGS.url],
     webuiUrl: ['webui_url', DEFAULT_SETTINGS.webuiUrl],
+    apiImageProvider: ['comfyui_api_image_provider', DEFAULT_SETTINGS.apiImageProvider],
+    apiImageUrl: ['comfyui_api_image_url', DEFAULT_SETTINGS.apiImageUrl],
+    apiImageEndpoint: ['comfyui_api_image_endpoint', DEFAULT_SETTINGS.apiImageEndpoint],
+    apiImageApiKey: ['comfyui_api_image_api_key', DEFAULT_SETTINGS.apiImageApiKey],
+    apiImageModel: ['comfyui_api_image_model', DEFAULT_SETTINGS.apiImageModel],
+    apiImageQuality: ['comfyui_api_image_quality', DEFAULT_SETTINGS.apiImageQuality],
+    apiImageOutputFormat: ['comfyui_api_image_output_format', DEFAULT_SETTINGS.apiImageOutputFormat],
+    apiImageSizeMode: ['comfyui_api_image_size_mode', DEFAULT_SETTINGS.apiImageSizeMode],
+    apiImageBatchSize: ['comfyui_api_image_batch_size', DEFAULT_SETTINGS.apiImageBatchSize],
+    apiImageTimeout: ['comfyui_api_image_timeout', DEFAULT_SETTINGS.apiImageTimeout],
+    apiImageSoftTimeoutMs: ['comfyui_api_image_soft_timeout_ms', DEFAULT_SETTINGS.apiImageSoftTimeoutMs],
+    apiImageUseSavedKeys: ['comfyui_api_image_use_saved_keys', DEFAULT_SETTINGS.apiImageUseSavedKeys],
+    apiImageRetryOnFailure: ['comfyui_api_image_retry_on_failure', DEFAULT_SETTINGS.apiImageRetryOnFailure],
+    apiImageMaxKeyAttempts: ['comfyui_api_image_max_key_attempts', DEFAULT_SETTINGS.apiImageMaxKeyAttempts],
+    apiImageNegativePrompt: ['comfyui_api_image_negative_prompt', DEFAULT_SETTINGS.apiImageNegativePrompt],
+    apiImageCustomHeaders: ['comfyui_api_image_custom_headers', DEFAULT_SETTINGS.apiImageCustomHeaders],
+    apiImageCustomBody: ['comfyui_api_image_custom_body', DEFAULT_SETTINGS.apiImageCustomBody],
+    apiImageResponsePath: ['comfyui_api_image_response_path', DEFAULT_SETTINGS.apiImageResponsePath],
     workflow: ['comfyui_workflow', DEFAULT_SETTINGS.workflow],
     startTag: ['comfyui_start_tag', DEFAULT_SETTINGS.startTag],
     endTag: ['comfyui_end_tag', DEFAULT_SETTINGS.endTag],
@@ -42,7 +61,6 @@ const SETTINGS_TO_LOAD = {
     negativePrompt: ['comfyui_negative_prompt', DEFAULT_SETTINGS.negativePrompt],
     enableComparison: ['comfyui_enable_comparison', DEFAULT_SETTINGS.enableComparison],
     hideButtons: ['comfyui_hide_buttons', DEFAULT_SETTINGS.hideButtons],
-    directConnection: ['comfyui_direct_connection', DEFAULT_SETTINGS.directConnection],
     loraAutoAppendTriggers: ['comfyui_lora_auto_append_triggers', DEFAULT_SETTINGS.loraAutoAppendTriggers],
     loraStrictInjection: ['comfyui_lora_strict_injection', DEFAULT_SETTINGS.loraStrictInjection],
     loraSaveDebugWorkflow: ['comfyui_lora_save_debug_workflow', DEFAULT_SETTINGS.loraSaveDebugWorkflow],
@@ -87,7 +105,9 @@ export function createSettingsController({
         for (const [inputKey, [storageKey]] of settingsEntries) {
             const value = storedValues[storageKey];
             if (inputs[inputKey]) {
-                if (inputs[inputKey].type === 'checkbox') {
+                if (inputs[inputKey].dataset?.settingType === 'boolean-button') {
+                    inputs[inputKey].setAttribute('aria-pressed', value ? 'true' : 'false');
+                } else if (inputs[inputKey].type === 'checkbox') {
                     inputs[inputKey].checked = value;
                 } else {
                     inputs[inputKey].value = value;
@@ -106,9 +126,12 @@ export function createSettingsController({
             if (!input?.id) continue;
             if (input === inputs.aiPromptApiModelSelect) continue;
             if (input === inputs.aiPromptApiKeySelect) continue;
+            if (input === inputs.apiImageApiKeySelect) continue;
 
             let value;
-            if (input.type === 'checkbox') {
+            if (input.dataset?.settingType === 'boolean-button') {
+                value = input.getAttribute('aria-pressed') === 'true';
+            } else if (input.type === 'checkbox') {
                 value = input.checked;
             } else if (input.type === 'number') {
                 value = parseFloat(input.value) || 0;
@@ -116,7 +139,7 @@ export function createSettingsController({
                 value = input.value;
             }
 
-            const storageKey = input.id.replace(/-/g, '_');
+            const storageKey = input.dataset?.storageKey || input.id.replace(/-/g, '_');
             settingsToSave[storageKey] = value;
         }
 

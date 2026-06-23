@@ -2,6 +2,7 @@ import { createPanelApiListeners } from './panel-api-listeners.js';
 import { createPanelCacheListeners } from './panel-cache-listeners.js';
 import { createPanelGeneralListeners } from './panel-general-listeners.js';
 import { createPanelWorkflowListeners } from './panel-workflow-listeners.js';
+import { createApiImagePanelController } from '../api-image/api-image-panel-controller.js';
 
 export function createPanelListenerStack({
     makeRequest,
@@ -10,6 +11,7 @@ export function createPanelListenerStack({
     saveSettings,
     detectAiPromptModels,
     testAiPromptOpenAICompatibleApi,
+    testApiImageGeneration,
     fetchAndPopulateModels,
     fetchAndPopulateUNetModels,
     fetchAndPopulateWebUIModels,
@@ -139,7 +141,23 @@ export function createPanelListenerStack({
         logger,
     });
 
+    function initApiImageListeners(buttons, inputs) {
+        const controller = createApiImagePanelController({
+            buttons,
+            inputs,
+            getValue,
+            setValue,
+            saveSettings,
+            testApiImageGeneration,
+            showToast,
+            logger,
+        });
+        controller.init();
+        return controller;
+    }
+
     return {
+        initApiImageListeners,
         initApiListeners,
         initCacheListeners,
         initGeneralListeners,

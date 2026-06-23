@@ -16,6 +16,7 @@ export function createMessageStack({
     checkSendingStatus,
     streamingState,
     manualScan,
+    helperActivation,
     saveSettings,
     showToast,
     logger = console,
@@ -35,6 +36,7 @@ export function createMessageStack({
         getStableMessageId,
         checkSendingStatus,
         isMessageStreaming: (...args) => messageActionController?.isMessageStreaming?.(...args) ?? false,
+        isHelperEnabled: () => helperActivation?.isEnabled?.() ?? true,
         saveSettings,
         showToast,
         logger,
@@ -48,6 +50,7 @@ export function createMessageStack({
         buildGenerateButtonGroup: (...args) => aiPromptController.buildGenerateButtonGroup(...args),
         setupGenerateButtonGroups: (...args) => aiPromptController.setupGenerateButtonGroups(...args),
         renderAiPromptControlsForMessage: (...args) => aiPromptController.renderAiPromptControlsForMessage(...args),
+        isHelperEnabled: () => helperActivation?.isEnabled?.() ?? true,
         logger,
     });
 

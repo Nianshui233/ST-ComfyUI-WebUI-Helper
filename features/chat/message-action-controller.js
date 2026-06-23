@@ -9,6 +9,7 @@ export function createMessageActionController({
     buildGenerateButtonGroup,
     setupGenerateButtonGroups,
     renderAiPromptControlsForMessage,
+    isHelperEnabled,
     logger = console,
 }) {
     function isMessageBeingEdited(messageNode) {
@@ -100,6 +101,10 @@ export function createMessageActionController({
     }
 
     async function processMessageForImageActions(messageNode, forceReplace = false) {
+        if (!isHelperEnabled?.()) {
+            return;
+        }
+
         if (!forceReplace && isMessageBeingEdited(messageNode)) return;
 
         const now = Date.now();

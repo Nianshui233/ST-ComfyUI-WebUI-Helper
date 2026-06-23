@@ -21,6 +21,7 @@ export function getPanelLogTemplate() {
                         <span>级别</span>
                         <select id="comfyui-log-level">
                             <option value="normal">常规日志</option>
+                            <option value="api-image">API 生图</option>
                             <option value="">全部级别（含调试）</option>
                             <option value="error">错误</option>
                             <option value="warning">警告</option>

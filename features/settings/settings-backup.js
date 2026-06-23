@@ -3,12 +3,30 @@ export const SETTINGS_EXPORT_VERSION = 1;
 export function createExportableStorageKeys(storageKeys) {
     return [
         storageKeys.mode,
+        storageKeys.helperEnabled,
         storageKeys.workflows,
         storageKeys.promptPresets,
         storageKeys.aiPromptRulePresets,
         storageKeys.comfyLoraPresets,
         'comfyui_url',
         'webui_url',
+        'comfyui_api_image_provider',
+        'comfyui_api_image_url',
+        'comfyui_api_image_endpoint',
+        'comfyui_api_image_model',
+        'comfyui_api_image_quality',
+        'comfyui_api_image_output_format',
+        'comfyui_api_image_size_mode',
+        'comfyui_api_image_batch_size',
+        'comfyui_api_image_timeout',
+        'comfyui_api_image_soft_timeout_ms',
+        'comfyui_api_image_use_saved_keys',
+        'comfyui_api_image_retry_on_failure',
+        'comfyui_api_image_max_key_attempts',
+        'comfyui_api_image_negative_prompt',
+        'comfyui_api_image_custom_headers',
+        'comfyui_api_image_custom_body',
+        'comfyui_api_image_response_path',
         'comfyui_workflow',
         'comfyui_start_tag',
         'comfyui_end_tag',
@@ -44,7 +62,6 @@ export function createExportableStorageKeys(storageKeys) {
         'comfyui_negative_prompt',
         'comfyui_enable_comparison',
         'comfyui_hide_buttons',
-        'comfyui_direct_connection',
         'selected_embeddings',
         'comfyui_selected_loras',
         'comfyui_lora_auto_append_triggers',
@@ -76,6 +93,8 @@ export function buildSettingsExportPayload(values) {
     const settings = { ...values };
     delete settings.comfyui_ai_prompt_api_key;
     delete settings.comfyui_ai_prompt_api_keys;
+    delete settings.comfyui_api_image_api_key;
+    delete settings.comfyui_api_image_api_keys;
 
     return {
         type: 'ST-ComfyUI-WebUI-Helper settings',

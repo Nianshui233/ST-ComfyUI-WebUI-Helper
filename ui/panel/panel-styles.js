@@ -5,6 +5,7 @@ import { getPanelLoraCacheStyles } from '../styles/panel-lora-cache-styles.js';
 import { getChatImageStyles } from '../styles/chat-image-styles.js';
 import { getAiPromptPanelStyles } from '../styles/ai-prompt-panel-styles.js';
 import { getPanelLogStyles } from '../styles/panel-log-styles.js';
+import { getPanelApiImageStyles } from '../styles/panel-api-image-styles.js';
 
 export function getPanelStyles({ panelId, buttonId }) {
     return [
@@ -15,5 +16,6 @@ export function getPanelStyles({ panelId, buttonId }) {
         getChatImageStyles({ panelId, buttonId }),
         getAiPromptPanelStyles({ panelId, buttonId }),
         getPanelLogStyles({ panelId, buttonId }),
+        getPanelApiImageStyles({ panelId, buttonId }),
     ].join('');
 }

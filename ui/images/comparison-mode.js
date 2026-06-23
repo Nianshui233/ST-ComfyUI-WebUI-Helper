@@ -2,8 +2,13 @@ export function createComparisonMode() {
     return {
         oldImageSrc: null,
 
+        getImageContainer(group) {
+            return group.closest('.comfy-ai-prompt-panel')?.querySelector('.comfy-ai-prompt-image-slot .comfy-image-container')
+                || group.nextElementSibling;
+        },
+
         captureOldImage(group) {
-            const container = group.nextElementSibling;
+            const container = this.getImageContainer(group);
             if (container?.classList.contains('comfy-image-container')) {
                 const img = container.querySelector('img');
                 if (img?.src) this.oldImageSrc = img.src;
@@ -66,7 +71,7 @@ export function createComparisonMode() {
             keepOldBtn.className = 'comfy-button';
             keepOldBtn.textContent = '恢复旧图';
             keepOldBtn.addEventListener('click', () => {
-                const imgContainer = group.nextElementSibling;
+                const imgContainer = this.getImageContainer(group);
                 if (imgContainer?.classList.contains('comfy-image-container')) {
                     const img = imgContainer.querySelector('img');
                     if (img) img.src = this.oldImageSrc;
@@ -81,7 +86,7 @@ export function createComparisonMode() {
 
             actions.append(keepNewBtn, keepOldBtn, closeBtn);
 
-            const imageContainer = group.nextElementSibling;
+            const imageContainer = this.getImageContainer(group);
             if (imageContainer) {
                 imageContainer.insertAdjacentElement('afterend', actions);
                 imageContainer.insertAdjacentElement('afterend', wrapper);

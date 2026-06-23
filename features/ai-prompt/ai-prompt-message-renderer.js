@@ -13,6 +13,7 @@ export function createAiPromptMessageRenderer({
     getStableMessageId,
     isAiPromptEligibleMessage,
     isMessageStreaming,
+    isHelperEnabled,
     buildGenerateButtonGroup,
     setupGenerateButtonGroups,
     generateAiPromptForMessage,
@@ -24,6 +25,10 @@ export function createAiPromptMessageRenderer({
         if (!mesText) return;
 
         const existing = messageNode.querySelector('.comfy-ai-prompt-panel');
+        if (!isHelperEnabled?.()) {
+            return;
+        }
+
         if (messageNode.dataset.aiPromptGenerating === 'true') {
             if (existing) return;
         }

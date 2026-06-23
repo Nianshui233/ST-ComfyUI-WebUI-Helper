@@ -148,6 +148,10 @@ export function getPanelLogStyles({ panelId }) {
             border-left-color: var(--vp-warning-color);
             background: linear-gradient(90deg, rgba(233, 180, 76, 0.08), rgba(255, 255, 255, 0.03));
         }
+        #${panelId} .comfy-log-entry.log-api-image {
+            border-left-color: var(--vp-api-color, #9cc7ff);
+            background: linear-gradient(90deg, rgba(156, 199, 255, 0.09), rgba(255, 255, 255, 0.03));
+        }
 
         #${panelId} .comfy-log-entry.log-debug {
             opacity: 0.72;

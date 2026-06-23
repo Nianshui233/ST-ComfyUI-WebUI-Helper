@@ -129,6 +129,8 @@ export function getPanelWorkflowStyles({ panelId, buttonId }) {
         /* ---------- Mode-scoped show/hide ---------- */
         .webui-settings { display: none; }
         .webui-settings.active { display: block; }
+        .api-settings { display: none; }
+        .api-settings.active { display: block; }
         .comfyui-settings { display: block; }
         .comfyui-settings.hidden { display: none; }
 `;

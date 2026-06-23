@@ -5,6 +5,7 @@ export function createExtensionLifecycle({
     imageCacheDB,
     panelController,
     connectionMonitor,
+    helperActivation,
     imageTooltip,
     chatScanSystem,
     manualScan,
@@ -12,6 +13,7 @@ export function createExtensionLifecycle({
     onGenerateButtonClick,
     onAiPromptActionClick,
     generateWithComfyUI,
+    generateWithApiImage,
     generateWithWebUI,
     logRuntimeConfig,
     showToast,
@@ -80,13 +82,14 @@ export function createExtensionLifecycle({
         });
     }
 
-    async function activateHelper() {
+    async function activateHelper({ silent = false } = {}) {
         if (helperActivated) return true;
         helperActivated = true;
+        helperActivation?.markActivated?.();
 
         imageCacheDB.init().catch(error => {
             logger.error('[AI Gen] IndexedDB初始化失败', error);
-            showToast('error', 'IndexedDB初始化失败，缓存功能不可用');
+            if (!silent) showToast('error', 'IndexedDB初始化失败，缓存功能不可用');
         });
 
         panelController.createPanel();
@@ -97,7 +100,7 @@ export function createExtensionLifecycle({
         if (!mainChat) {
             helperActivated = false;
             logger.error('[AI Gen] 无法找到 #chat 元素，脚本无法启动。');
-            showToast('error', '没有找到 SillyTavern 聊天窗口，稍后可再次打开面板重试');
+            if (!silent) showToast('error', '没有找到 SillyTavern 聊天窗口，稍后可再次打开面板重试');
             return false;
         }
 
@@ -110,9 +113,14 @@ export function createExtensionLifecycle({
 
         attachOptionsObserver();
 
+        if (helperActivation?.isEnabled?.()) {
+            manualScan.start();
+            helperActivation.scheduleScan?.(120);
+        }
+
         logger.log('[AI Gen Optimized] 脚本已成功初始化');
-        showToast('info', 'SillyTavern图片生成器已就绪');
-        logger.log('[AI Gen] 流式输出优化已就绪，等待连接后启动扫描');
+        if (!silent) showToast('info', 'SillyTavern图片生成器已就绪');
+        logger.log('[AI Gen] 流式输出优化已就绪，插件总开关开启时会自动扫描聊天');
         logRuntimeConfig();
 
         return true;
@@ -120,7 +128,19 @@ export function createExtensionLifecycle({
 
     function initialize() {
         addMainButton();
-        logger.log('[AI Gen] 图片生成助手已加载，等待用户手动打开。');
+        logger.log('[AI Gen] 图片生成助手已加载，正在读取插件总开关。');
+        helperActivation?.load?.()
+            .then(isEnabled => {
+                helperActivation?.setActivateCallback?.(activateHelper);
+                if (isEnabled) {
+                    return helperActivation.setEnabled(true, { silent: true, persist: false });
+                }
+                helperActivation?.clearChatImageControls?.();
+                return null;
+            })
+            .catch(error => {
+                logger.error('[AI Gen] 加载插件总开关失败:', error);
+            });
     }
 
     function installGlobalApi() {
@@ -128,6 +148,7 @@ export function createExtensionLifecycle({
             switchMode: (mode) => panelController.switchMode(mode),
             currentMode: () => panelController.getCurrentMode(),
             generateWithComfyUI,
+            generateWithApiImage,
             generateWithWebUI,
             updateModeUI: () => panelController.updateModeUI(),
             MODES: modes,
@@ -180,6 +201,7 @@ export function createExtensionLifecycle({
         if (initialized) return;
         initialized = true;
         installGlobalApi();
+        helperActivation?.setActivateCallback?.(activateHelper);
 
         if (document.readyState === 'loading') {
             window.addEventListener('DOMContentLoaded', initialize, { once: true });

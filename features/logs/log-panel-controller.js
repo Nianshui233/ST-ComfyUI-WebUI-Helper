@@ -34,6 +34,9 @@ function formatTime(timestamp) {
 
 function entryMatches(entry, { level, query }) {
     if (level === 'normal' && entry.level === 'debug') return false;
+    if (level === 'api-image') {
+        return /API 生图|api-image/i.test(`${entry.source} ${entry.message} ${entry.details}`);
+    }
     if (level && level !== 'normal' && entry.level !== level) return false;
     if (!query) return true;
 
@@ -46,7 +49,8 @@ function buildEntryHtml(entry) {
         ? `<pre class="comfy-log-details">${escapeHTML(entry.details)}</pre>`
         : '';
     const isAiPrompt = /AI 绘图提示词分析完成/.test(entry.message);
-    const entryClass = `comfy-log-entry log-${entry.level}${isAiPrompt ? ' log-ai-prompt' : ''}`;
+    const isApiImage = /API 生图|api-image/i.test(`${entry.source} ${entry.message} ${entry.details}`);
+    const entryClass = `comfy-log-entry log-${entry.level}${isAiPrompt ? ' log-ai-prompt' : ''}${isApiImage ? ' log-api-image' : ''}`;
 
     return `<article class="${entryClass}">
         <div class="comfy-log-entry-head">

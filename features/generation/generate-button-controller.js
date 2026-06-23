@@ -8,7 +8,9 @@ export function createGenerateButtonController({
     getStoredValues,
     getValue,
     getCurrentMode,
+    isHelperEnabled,
     generateWithComfyUI,
+    generateWithApiImage,
     generateWithWebUI,
     updateSeedDisplay,
     saveImageToCache,
@@ -28,8 +30,83 @@ export function createGenerateButtonController({
             || group.nextElementSibling;
     }
 
+    function getModeLabel(mode) {
+        return {
+            [MODES.COMFYUI]: 'ComfyUI',
+            [MODES.WEBUI]: 'WebUI',
+            [MODES.API]: 'API 生图',
+        }[mode] || mode;
+    }
+
+    async function generateByMode(mode, promptFromChat) {
+        if (mode === MODES.COMFYUI) return generateWithComfyUI(promptFromChat);
+        if (mode === MODES.WEBUI) return generateWithWebUI(promptFromChat);
+        if (mode === MODES.API) return generateWithApiImage(promptFromChat);
+        throw new Error(`未知生成模式: ${mode}`);
+    }
+
+    async function getGenerationMetadata(mode, primaryImage, startedAt, resultMetadata = {}) {
+        if (mode === MODES.API) {
+            const settings = await getStoredValues([
+                ['comfyui_gen_width', DEFAULT_SETTINGS.genWidth],
+                ['comfyui_gen_height', DEFAULT_SETTINGS.genHeight],
+                ['comfyui_api_image_provider', DEFAULT_SETTINGS.apiImageProvider],
+                ['comfyui_api_image_model', DEFAULT_SETTINGS.apiImageModel],
+                ['comfyui_api_image_quality', DEFAULT_SETTINGS.apiImageQuality],
+                ['comfyui_api_image_output_format', DEFAULT_SETTINGS.apiImageOutputFormat],
+                ['comfyui_api_image_size_mode', DEFAULT_SETTINGS.apiImageSizeMode],
+            ]);
+            return {
+                width: settings.comfyui_gen_width,
+                height: settings.comfyui_gen_height,
+                provider: settings.comfyui_api_image_provider,
+                model: resultMetadata.model || settings.comfyui_api_image_model,
+                quality: resultMetadata.quality || settings.comfyui_api_image_quality,
+                outputFormat: resultMetadata.outputFormat || settings.comfyui_api_image_output_format,
+                sizeMode: settings.comfyui_api_image_size_mode,
+                seed: primaryImage.seed,
+                generationTime: Date.now() - startedAt,
+                ...resultMetadata,
+            };
+        }
+
+        const metadataSettings = mode === MODES.COMFYUI
+            ? await getStoredValues([
+                ['comfyui_gen_width', DEFAULT_SETTINGS.genWidth],
+                ['comfyui_gen_height', DEFAULT_SETTINGS.genHeight],
+                ['comfyui_model', ''],
+                ['comfyui_steps', DEFAULT_SETTINGS.steps],
+                ['comfyui_cfg', DEFAULT_SETTINGS.cfg],
+                ['comfyui_sampler', DEFAULT_SETTINGS.sampler],
+            ])
+            : await getStoredValues([
+                ['comfyui_gen_width', DEFAULT_SETTINGS.genWidth],
+                ['comfyui_gen_height', DEFAULT_SETTINGS.genHeight],
+                ['webui_model', ''],
+                ['webui_steps', DEFAULT_SETTINGS.steps],
+                ['webui_cfg', DEFAULT_SETTINGS.cfg],
+                ['webui_sampler', DEFAULT_SETTINGS.webuiSampler],
+            ]);
+
+        return {
+            width: metadataSettings.comfyui_gen_width,
+            height: metadataSettings.comfyui_gen_height,
+            model: mode === MODES.COMFYUI ? metadataSettings.comfyui_model : metadataSettings.webui_model,
+            steps: mode === MODES.COMFYUI ? metadataSettings.comfyui_steps : metadataSettings.webui_steps,
+            cfg: mode === MODES.COMFYUI ? metadataSettings.comfyui_cfg : metadataSettings.webui_cfg,
+            sampler: mode === MODES.COMFYUI ? metadataSettings.comfyui_sampler : metadataSettings.webui_sampler,
+            seed: primaryImage.seed,
+            generationTime: Date.now() - startedAt,
+        };
+    }
+
     async function onGenerateButtonClick(event) {
         const button = event.target.closest('.comfy-chat-generate-button');
+        if (!isHelperEnabled?.()) {
+            showToast('warning', '绘图插件已暂停，请先打开插件总开关');
+            return;
+        }
+
         const group = button.closest('.comfy-button-group');
         const promptFromChat = button.dataset.prompt;
         const generationId = group.dataset.generationId;
@@ -86,43 +163,17 @@ export function createGenerateButtonController({
         try {
             const startTime = Date.now();
             const currentMode = getCurrentMode();
-            const result = currentMode === MODES.COMFYUI
-                ? await generateWithComfyUI(promptFromChat)
-                : await generateWithWebUI(promptFromChat);
+            progressTracker.update(0.04, `${getModeLabel(currentMode)}：准备请求`);
+            const result = await generateByMode(currentMode, promptFromChat);
 
             const { images } = result;
             const primaryImage = images[0];
 
-            updateSeedDisplay(primaryImage.seed);
+            if (currentMode !== MODES.API) {
+                updateSeedDisplay(primaryImage.seed);
+            }
 
-            const metadataSettings = currentMode === MODES.COMFYUI
-                ? await getStoredValues([
-                    ['comfyui_gen_width', DEFAULT_SETTINGS.genWidth],
-                    ['comfyui_gen_height', DEFAULT_SETTINGS.genHeight],
-                    ['comfyui_model', ''],
-                    ['comfyui_steps', DEFAULT_SETTINGS.steps],
-                    ['comfyui_cfg', DEFAULT_SETTINGS.cfg],
-                    ['comfyui_sampler', DEFAULT_SETTINGS.sampler],
-                ])
-                : await getStoredValues([
-                    ['comfyui_gen_width', DEFAULT_SETTINGS.genWidth],
-                    ['comfyui_gen_height', DEFAULT_SETTINGS.genHeight],
-                    ['webui_model', ''],
-                    ['webui_steps', DEFAULT_SETTINGS.steps],
-                    ['webui_cfg', DEFAULT_SETTINGS.cfg],
-                    ['webui_sampler', DEFAULT_SETTINGS.webuiSampler],
-                ]);
-
-            const metadata = {
-                width: metadataSettings.comfyui_gen_width,
-                height: metadataSettings.comfyui_gen_height,
-                model: currentMode === MODES.COMFYUI ? metadataSettings.comfyui_model : metadataSettings.webui_model,
-                steps: currentMode === MODES.COMFYUI ? metadataSettings.comfyui_steps : metadataSettings.webui_steps,
-                cfg: currentMode === MODES.COMFYUI ? metadataSettings.comfyui_cfg : metadataSettings.webui_cfg,
-                sampler: currentMode === MODES.COMFYUI ? metadataSettings.comfyui_sampler : metadataSettings.webui_sampler,
-                seed: primaryImage.seed,
-                generationTime: Date.now() - startTime,
-            };
+            const metadata = await getGenerationMetadata(currentMode, primaryImage, startTime, result.metadata);
 
             await saveImageToCache(generationId, primaryImage.imageUrl, promptFromChat, metadata);
 

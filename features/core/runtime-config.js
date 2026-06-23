@@ -9,9 +9,11 @@ export const GENERATE_COOLDOWN = 2000;
 export const STORAGE_KEY_IMAGES = 'comfyui_generated_images';
 export const STORAGE_KEY_WORKFLOWS = 'comfyui_saved_workflows';
 export const STORAGE_KEY_MODE = 'generation_mode';
+export const STORAGE_KEY_HELPER_ENABLED = 'comfyui_helper_enabled';
 export const STORAGE_KEY_PROMPT_PRESETS = 'comfyui_prompt_presets';
 export const STORAGE_KEY_AI_PROMPT_RULE_PRESETS = 'comfyui_ai_prompt_rule_presets';
 export const STORAGE_KEY_AI_PROMPT_API_KEYS = 'comfyui_ai_prompt_api_keys';
+export const STORAGE_KEY_API_IMAGE_API_KEYS = 'comfyui_api_image_api_keys';
 export const STORAGE_KEY_COMFYUI_LORA_PRESETS = 'comfyui_lora_presets';
 export const STORAGE_KEY_LAST_COMFYUI_WORKFLOW = 'comfyui_last_submitted_workflow';
 export const STORAGE_KEY_LAST_LORA_REPORT = 'comfyui_last_lora_injection_report';
@@ -19,6 +21,7 @@ export const STORAGE_KEY_LAST_LORA_REPORT = 'comfyui_last_lora_injection_report'
 export const MODES = {
     COMFYUI: 'comfyui',
     WEBUI: 'webui',
+    API: 'api',
 };
 
 export const DEFAULT_AI_PROMPT_INSTRUCTION = `你是 SillyTavern RP 场景的绘图提示词提取器，只负责根据最近聊天内容生成一段适合 FLUX/SD 的英文绘图提示词。
@@ -42,9 +45,36 @@ export const DEFAULT_AI_PROMPT_INSTRUCTION = `你是 SillyTavern RP 场景的绘
 只输出最终绘图提示词本身，不要输出 [IMG_GEN] 标签，不要解释。`;
 
 export const DEFAULT_SETTINGS = {
+    helperEnabled: true,
     mode: MODES.COMFYUI,
     url: 'http://127.0.0.1:8188',
     webuiUrl: 'http://127.0.0.1:7860',
+    apiImageProvider: 'openai_images',
+    apiImageUrl: 'https://api.openai.com/v1',
+    apiImageEndpoint: '',
+    apiImageApiKey: '',
+    apiImageModel: 'gpt-image-1',
+    apiImageQuality: 'auto',
+    apiImageOutputFormat: 'png',
+    apiImageSizeMode: 'auto',
+    apiImageBatchSize: 1,
+    apiImageTimeout: 300000,
+    apiImageSoftTimeoutMs: 60000,
+    apiImageUseSavedKeys: true,
+    apiImageRetryOnFailure: true,
+    apiImageMaxKeyAttempts: 0,
+    apiImageNegativePrompt: '',
+    apiImageCustomHeaders: '',
+    apiImageCustomBody: `{
+  "model": %model_json%,
+  "prompt": %prompt_json%,
+  "negative_prompt": %negative_prompt_json%,
+  "width": %width%,
+  "height": %height%,
+  "n": %batch_size%,
+  "response_format": "b64_json"
+}`,
+    apiImageResponsePath: '',
     workflow: '',
     startTag: '开始生成',
     endTag: '结束生成',
@@ -77,7 +107,6 @@ export const DEFAULT_SETTINGS = {
     img2imgDenoising: 0.75,
     enableComparison: true,
     hideButtons: false,
-    directConnection: false,
     loraAutoAppendTriggers: true,
     loraStrictInjection: true,
     loraSaveDebugWorkflow: true,
@@ -104,6 +133,7 @@ export const DEFAULT_SETTINGS = {
 
 export const EXPORTABLE_STORAGE_KEYS = createExportableStorageKeys({
     mode: STORAGE_KEY_MODE,
+    helperEnabled: STORAGE_KEY_HELPER_ENABLED,
     workflows: STORAGE_KEY_WORKFLOWS,
     promptPresets: STORAGE_KEY_PROMPT_PRESETS,
     aiPromptRulePresets: STORAGE_KEY_AI_PROMPT_RULE_PRESETS,

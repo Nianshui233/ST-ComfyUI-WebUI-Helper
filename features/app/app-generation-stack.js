@@ -22,6 +22,7 @@ export function createGenerationStack({
     getCurrentMode,
     getPanelController,
     getAiPromptController,
+    isHelperEnabled,
     getEnabledComfyUISelectedLoras,
     getImg2ImgState,
     generateEmbeddingPromptString,
@@ -34,6 +35,7 @@ export function createGenerationStack({
 
     const generationService = createGenerationService({
         validateSettings: () => getPanelController().validateSettings(),
+        getValue,
         getStoredValues,
         getCachedObjectInfo,
         getEnabledComfyUISelectedLoras,
@@ -64,6 +66,14 @@ export function createGenerationStack({
 
     async function generateWithWebUI(promptFromChat) {
         return generationService.generateWithWebUI(promptFromChat);
+    }
+
+    async function generateWithApiImage(promptFromChat) {
+        return generationService.generateWithApiImage(promptFromChat);
+    }
+
+    async function testApiImageGeneration() {
+        return generationService.testApiImageGeneration();
     }
 
     const imageRenderer = createImageRenderer({
@@ -97,7 +107,9 @@ export function createGenerationStack({
         getStoredValues,
         getValue,
         getCurrentMode,
+        isHelperEnabled,
         generateWithComfyUI,
+        generateWithApiImage,
         generateWithWebUI,
         updateSeedDisplay: (seed) => getPanelController().updateSeedDisplay(seed),
         saveImageToCache,
@@ -119,6 +131,7 @@ export function createGenerationStack({
         displayImageGrid,
         generateButtonController,
         generateWithComfyUI,
+        generateWithApiImage,
         generateWithWebUI,
         imageCacheController,
         imageRenderer,
@@ -126,5 +139,6 @@ export function createGenerationStack({
         loadImageCache,
         onGenerateButtonClick: generateButtonController.onGenerateButtonClick,
         saveImageToCache,
+        testApiImageGeneration,
     };
 }

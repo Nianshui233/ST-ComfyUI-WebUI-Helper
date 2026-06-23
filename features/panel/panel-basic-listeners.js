@@ -8,6 +8,7 @@ export function initAutosaveListeners({
         if (!input?.addEventListener) return;
         if (input === inputs.aiPromptApiModelSelect) return;
         if (input === inputs.aiPromptApiKeySelect) return;
+        if (input === inputs.apiImageApiKeySelect) return;
         const eventType = (input.tagName === 'SELECT' || input.type === 'checkbox') ? 'change' : 'input';
         input.addEventListener(eventType, () => {
             if (input === inputs.url) buttons.test.className = 'comfy-button';
