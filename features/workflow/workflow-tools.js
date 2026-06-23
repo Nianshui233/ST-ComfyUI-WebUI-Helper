@@ -99,7 +99,11 @@ export function convertWorkflowToPlaceholders(workflowString) {
         let modified = false;
 
         const nodeConnections = analyzeNodeConnections(workflow);
-        console.log('[AI Gen] 节点连接分析结果:', nodeConnections);
+        console.info('[AI Gen] 节点连接分析结果:', {
+            positivePromptNodes: nodeConnections.positivePromptNodes.size,
+            negativePromptNodes: nodeConnections.negativePromptNodes.size,
+            samplerNodes: nodeConnections.samplerNodes.size,
+        });
 
         for (const nodeId in workflow) {
             const nodeData = workflow[nodeId];
@@ -132,7 +136,7 @@ function processNodeForPlaceholders(obj, nodeId, connections, workflow) {
             if (replacement !== null && replacement !== value) {
                 obj[key] = replacement;
                 hasModified = true;
-                console.log(`[AI Gen] 替换: 节点 ${nodeId}, 键 ${key}: "${value}" -> "${replacement}"`);
+                console.info(`[AI Gen] 替换占位符: 节点 ${nodeId}, 键 ${key} -> ${replacement}`);
             }
         }
     }

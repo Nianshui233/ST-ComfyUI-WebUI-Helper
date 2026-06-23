@@ -13,10 +13,13 @@ export function createAiPromptActionHandler({
     renderAiPromptControlsForMessage,
     saveAiPromptToMessage,
     saveCurrentSettings,
+    onStoryboardActionClick,
     showToast,
     logger = console,
 }) {
     async function onAiPromptActionClick(event) {
+        if (await onStoryboardActionClick?.(event)) return;
+
         const button = event.target.closest('.comfy-ai-prompt-action');
         if (!button || button.disabled) return;
 

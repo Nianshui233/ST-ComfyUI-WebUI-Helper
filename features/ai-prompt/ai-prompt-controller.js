@@ -7,6 +7,9 @@ import { createAiPromptMessageRenderer } from './ai-prompt-message-renderer.js';
 import { setAiPromptPanelBusy } from './ai-prompt-panel-renderer.js';
 import { createAiPromptSettingsReader } from './ai-prompt-settings.js';
 import { DEFAULT_SETTINGS } from '../core/runtime-config.js';
+import { createStoryboardActionHandler } from '../storyboard/storyboard-action-handler.js';
+import { createStoryboardService } from '../storyboard/storyboard-service.js';
+import { createStoryboardStore } from '../storyboard/storyboard-store.js';
 
 export function createAiPromptController({
     getStoredValues,
@@ -17,6 +20,7 @@ export function createAiPromptController({
     getContext,
     imageCacheDB,
     displayImage,
+    generateFromGroup,
     setupGeneratedState,
     getStableMessageId,
     checkSendingStatus,
@@ -40,6 +44,10 @@ export function createAiPromptController({
         isAiPromptEligibleMessage,
         saveAiPromptToMessage,
     } = messageStore;
+    const storyboardStore = createStoryboardStore({
+        getChatMessageByNode,
+        saveChatConditional,
+    });
 
     function getAiPromptServiceDeps() {
         return {
@@ -69,6 +77,16 @@ export function createAiPromptController({
         saveAiPromptToMessage,
         logger,
     });
+    const storyboardService = createStoryboardService({
+        buildAiPromptContext,
+        generateQuietPrompt,
+        getAiPromptServiceDeps,
+        getAiPromptSettings,
+        getChatMessageByNode,
+        isAiPromptEligibleMessage,
+        saveStoryboardToMessage: storyboardStore.saveStoryboardToMessage,
+        logger,
+    });
 
     const {
         buildGenerateButtonGroup,
@@ -81,6 +99,7 @@ export function createAiPromptController({
         checkSendingStatus,
     });
 
+    let storyboardActionHandler;
     const { renderAiPromptControlsForMessage } = createAiPromptMessageRenderer({
         getAiPromptSettings,
         getChatMessageByNode,
@@ -92,6 +111,7 @@ export function createAiPromptController({
         buildGenerateButtonGroup,
         setupGenerateButtonGroups,
         generateAiPromptForMessage,
+        renderStoryboardForPanel: (...args) => storyboardActionHandler?.renderStoryboardForPanel?.(...args),
         showToast,
         logger,
     });
@@ -103,7 +123,24 @@ export function createAiPromptController({
         renderAiPromptControlsForMessage,
         saveCurrentSettings: saveSettings,
         saveAiPromptToMessage,
+        onStoryboardActionClick: (...args) => storyboardActionHandler?.onStoryboardActionClick?.(...args),
         showToast,
+        logger,
+    });
+    storyboardActionHandler = createStoryboardActionHandler({
+        buildGenerateButtonGroup,
+        clearStoryboardFromMessage: storyboardStore.clearStoryboardFromMessage,
+        deleteStoryboardPanel: storyboardStore.deleteStoryboardPanel,
+        generateStoryboardForMessage: storyboardService.generateStoryboardForMessage,
+        getChatMessageByNode,
+        getStableMessageId,
+        getStoryboard: storyboardStore.getStoryboard,
+        renderAiPromptControlsForMessage,
+        saveCurrentSettings: saveSettings,
+        generateFromGroup,
+        setupGenerateButtonGroups,
+        showToast,
+        updateStoryboardPanel: storyboardStore.updateStoryboardPanel,
         logger,
     });
 

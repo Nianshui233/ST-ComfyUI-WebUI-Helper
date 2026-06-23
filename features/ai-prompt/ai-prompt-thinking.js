@@ -113,9 +113,9 @@ export function getAiPromptRequestTemperature(settings, defaults) {
 }
 
 export function buildAiPromptSystemPrompt(instruction) {
-    return 'You are an image-prompt formatter. Follow the user-provided formatting rules exactly. Return only the final prompt content. Do not explain, refuse, summarize, or add markdown unless the user rules explicitly require it.';
+    return 'You are an image-prompt formatter and storyboard planner. Follow the user-provided formatting rules exactly. Return only the requested final content. If the user asks for JSON, return one valid JSON object only. Do not explain, refuse, summarize, or add markdown unless the user rules explicitly require it.';
 }
 
 export function buildAiPromptRetryPrompt(instruction, quietPrompt) {
-    return `${quietPrompt}\n\n上一次返回没有可用文本。请严格遵守上方绘图分析规则，只返回最终绘图提示词内容；如果规则要求 [IMG_GEN]，只返回完整 [IMG_GEN] 块。不要解释、不要输出推理、不要总结剧情。`;
+    return `${quietPrompt}\n\n上一次返回没有可用文本。请严格遵守本次请求的输出格式，只返回最终内容；如果要求 JSON，只返回完整有效 JSON；如果规则要求 [IMG_GEN]，只返回完整 [IMG_GEN] 块。不要解释、不要输出推理、不要总结剧情。`;
 }

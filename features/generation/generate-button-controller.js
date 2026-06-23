@@ -26,6 +26,17 @@ export function createGenerateButtonController({
     const generateThrottle = new Map();
 
     function getGeneratedImageContainer(group) {
+        const customSlotSelector = group?.dataset?.imageSlot;
+        if (customSlotSelector) {
+            const customRoot = group.closest('.comfy-storyboard-panel')
+                || group.closest('.comfy-ai-prompt-panel')
+                || group.parentElement;
+            const customSlot = customRoot?.querySelector(customSlotSelector)
+                || group.parentElement?.querySelector(customSlotSelector);
+            const customContainer = customSlot?.querySelector('.comfy-image-container');
+            if (customSlot) return customContainer || null;
+        }
+
         return group.closest('.comfy-ai-prompt-panel')?.querySelector('.comfy-ai-prompt-image-slot .comfy-image-container')
             || group.nextElementSibling;
     }
@@ -100,29 +111,83 @@ export function createGenerateButtonController({
         };
     }
 
-    async function onGenerateButtonClick(event) {
-        const button = event.target.closest('.comfy-chat-generate-button');
+    function clearComparisonUI(group) {
+        const imageContainer = getGeneratedImageContainer(group);
+        const roots = [
+            imageContainer?.parentElement,
+            group.parentElement,
+        ].filter(Boolean);
+        for (const root of roots) {
+            root.querySelector('.comfy-compare-container')?.remove();
+            root.querySelector('.comfy-compare-actions')?.remove();
+        }
+    }
+
+    function refreshStoryboardPanelLayout(panel) {
+        if (!panel) return;
+        const slot = panel.querySelector('.comfy-storyboard-image-slot');
+        if (slot?.querySelector('img')) {
+            slot.classList.add('has-image');
+            panel.classList.add('has-image');
+        }
+
+        const frame = typeof requestAnimationFrame === 'function'
+            ? requestAnimationFrame
+            : (callback) => setTimeout(callback, 0);
+        void panel.offsetHeight;
+        frame(() => {
+            panel.classList.add('is-layout-refreshing');
+            slot?.classList.add('is-layout-refreshing');
+            void panel.offsetHeight;
+            frame(() => {
+                panel.classList.remove('is-layout-refreshing');
+                slot?.classList.remove('is-layout-refreshing');
+                panel.closest('.comfy-storyboard-panels')?.dispatchEvent(new CustomEvent('comfy-storyboard-layout-refresh', { bubbles: true }));
+                panel.closest('#chat')?.dispatchEvent(new CustomEvent('comfy-storyboard-layout-refresh', { bubbles: true }));
+                if (typeof window !== 'undefined') window.dispatchEvent(new Event('resize'));
+            });
+        });
+    }
+
+    function dispatchStoryboardGenerationFinished(panel, detail = {}) {
+        if (!panel) return;
+        panel.dataset.generationStatus = detail.status || '';
+        panel.dispatchEvent(new CustomEvent('comfy-storyboard-generation-finished', {
+            bubbles: true,
+            detail,
+        }));
+    }
+
+    async function generateFromButton(button, { force = false, ignoreCooldown = false } = {}) {
+        if (!button) return { status: 'error', error: '没有找到生图按钮' };
         if (!isHelperEnabled?.()) {
             showToast('warning', '绘图插件已暂停，请先打开插件总开关');
-            return;
+            return { status: 'error', error: '绘图插件已暂停' };
         }
 
         const group = button.closest('.comfy-button-group');
+        if (!group) return { status: 'error', error: '没有找到生图按钮组' };
         const promptFromChat = button.dataset.prompt;
         const generationId = group.dataset.generationId;
         const aiPanel = group.closest('.comfy-ai-prompt-panel');
         const source = group.dataset.source || 'tag';
-        const initialLabel = source === 'ai_prompt' ? '生成图片' : '开始生成';
+        const isStoryboard = source === 'storyboard';
+        const storyboardPanel = isStoryboard ? group.closest('.comfy-storyboard-panel') : null;
+        const initialLabel = source === 'ai_prompt' ? '生成图片' : (isStoryboard ? '生图' : '开始生成');
+        let storyboardGenerationStatus = 'idle';
+        let storyboardGenerationError = '';
+        let generationResult = { status: 'idle', generationId };
 
-        if (button.disabled || button.dataset.processing === 'true') return;
+        if (button.dataset.processing === 'true') return { status: 'busy', error: '当前格正在生成中', generationId };
+        if (button.disabled && !force) return { status: 'disabled', error: '生图按钮不可用', generationId };
 
-        const isFirstGeneration = button.textContent === '开始生成' || button.textContent === '生成图片';
+        const isFirstGeneration = ['开始生成', '生成图片', '生图'].includes(button.textContent);
 
         const lastClick = generateThrottle.get(generationId);
-        if (lastClick && Date.now() - lastClick < GENERATE_COOLDOWN) {
+        if (!ignoreCooldown && lastClick && Date.now() - lastClick < GENERATE_COOLDOWN) {
             const remaining = Math.ceil((GENERATE_COOLDOWN - (Date.now() - lastClick)) / 1000);
             showToast('warning', `请稍后再试 (${remaining}秒冷却中)`);
-            return;
+            return { status: 'cooldown', error: `冷却中，还需 ${remaining} 秒`, generationId };
         }
         generateThrottle.set(generationId, Date.now());
         if (generateThrottle.size > 50) {
@@ -136,7 +201,19 @@ export function createGenerateButtonController({
         button.textContent = '生成中...';
         button.disabled = true;
         button.className = 'comfy-button comfy-chat-generate-button testing';
-        setAiPromptPanelBusy(aiPanel, '图片生成中...');
+        if (isStoryboard && storyboardPanel) {
+            storyboardPanel.classList.remove('is-queued', 'is-generated', 'is-error', 'is-cancelled');
+            storyboardPanel.classList.add('is-generating');
+            storyboardPanel.classList.remove('has-image');
+            storyboardPanel.querySelector('.comfy-storyboard-image-slot')?.classList.remove('has-image');
+            const status = storyboardPanel.querySelector('.comfy-storyboard-status');
+            if (status) status.textContent = '生成中...';
+            storyboardPanel.querySelectorAll('.comfy-storyboard-action').forEach(actionButton => {
+                actionButton.disabled = true;
+            });
+        } else {
+            setAiPromptPanelBusy(aiPanel, '图片生成中...');
+        }
 
         const {
             comfyui_hide_buttons: hideButtonsMode,
@@ -151,10 +228,7 @@ export function createGenerateButtonController({
 
         if (comparisonEnabled) comparisonMode.captureOldImage(group);
 
-        const oldCompare = group.parentElement?.querySelector('.comfy-compare-container');
-        if (oldCompare) oldCompare.remove();
-        const oldActions = group.parentElement?.querySelector('.comfy-compare-actions');
-        if (oldActions) oldActions.remove();
+        clearComparisonUI(group);
         const oldContainer = getGeneratedImageContainer(group);
         if (oldContainer?.classList.contains('comfy-image-container')) oldContainer.remove();
 
@@ -182,6 +256,7 @@ export function createGenerateButtonController({
             } else {
                 await displayImage(group, generationId);
             }
+            if (isStoryboard) refreshStoryboardPanelLayout(storyboardPanel);
 
             if (comparisonEnabled && comparisonMode.oldImageSrc) {
                 const newImg = getGeneratedImageContainer(group)?.querySelector('img');
@@ -190,10 +265,22 @@ export function createGenerateButtonController({
 
             button.className = 'comfy-button comfy-chat-generate-button success';
             button.textContent = '成功';
-            if (aiPanel) {
+            if (isStoryboard && storyboardPanel) {
+                storyboardPanel.classList.remove('is-queued', 'is-error', 'is-cancelled');
+                storyboardPanel.classList.add('is-generated');
+                const status = storyboardPanel.querySelector('.comfy-storyboard-status');
+                if (status) status.textContent = '已生成';
+                storyboardGenerationStatus = 'success';
+            } else if (aiPanel) {
                 setAiPromptPanelBusy(aiPanel, '图片已生成', false, { includeGenerate: false });
             }
-            setTimeout(() => setupGeneratedState(button, generationId), 2000);
+            generationResult = { status: 'success', generationId };
+            if (isStoryboard) {
+                await setupGeneratedState(button, generationId);
+                refreshStoryboardPanelLayout(storyboardPanel);
+            } else {
+                setTimeout(() => setupGeneratedState(button, generationId), 2000);
+            }
 
         } catch (error) {
             if (error?.cancelled) {
@@ -202,15 +289,32 @@ export function createGenerateButtonController({
                 button.disabled = false;
                 button.className = 'comfy-button comfy-chat-generate-button';
                 button.textContent = isFirstGeneration ? initialLabel : '重新生成';
-                setAiPromptPanelBusy(aiPanel, '', false);
+                if (isStoryboard && storyboardPanel) {
+                    storyboardPanel.classList.remove('is-queued', 'is-generated', 'is-error');
+                    storyboardPanel.classList.add('is-cancelled');
+                    const status = storyboardPanel.querySelector('.comfy-storyboard-status');
+                    if (status) status.textContent = '已取消';
+                    storyboardGenerationStatus = 'cancelled';
+                    storyboardGenerationError = '已取消';
+                }
+                generationResult = { status: 'cancelled', error: '已取消', generationId };
+                if (!isStoryboard) setAiPromptPanelBusy(aiPanel, '', false);
             } else {
                 logger.error('生成图片失败:', error);
                 showToast('error', error.message || String(error));
                 button.className = 'comfy-button comfy-chat-generate-button error';
                 button.textContent = '失败';
-                if (aiPanel) {
+                if (isStoryboard && storyboardPanel) {
+                    storyboardPanel.classList.remove('is-queued', 'is-generated', 'is-cancelled');
+                    storyboardPanel.classList.add('is-error');
+                    const status = storyboardPanel.querySelector('.comfy-storyboard-status');
+                    if (status) status.textContent = '失败';
+                    storyboardGenerationStatus = 'error';
+                    storyboardGenerationError = error.message || String(error);
+                } else if (aiPanel) {
                     setAiPromptPanelBusy(aiPanel, '生成失败', false);
                 }
+                generationResult = { status: 'error', error: error.message || String(error), generationId };
                 setTimeout(() => {
                     button.textContent = '重新生成';
                     button.disabled = false;
@@ -220,20 +324,52 @@ export function createGenerateButtonController({
         } finally {
             delete button.dataset.processing;
             progressTracker.remove();
+            if (isStoryboard && storyboardPanel) {
+                storyboardPanel.classList.remove('is-generating');
+                storyboardPanel.querySelectorAll('.comfy-storyboard-action').forEach(actionButton => {
+                    actionButton.disabled = false;
+                });
+                dispatchStoryboardGenerationFinished(storyboardPanel, {
+                    status: storyboardGenerationStatus,
+                    error: storyboardGenerationError,
+                    generationId,
+                });
+            }
         }
+        return generationResult;
+    }
+
+    async function generateFromGroup(group, options = {}) {
+        const button = group?.querySelector('.comfy-chat-generate-button');
+        return generateFromButton(button, options);
+    }
+
+    async function onGenerateButtonClick(event) {
+        const button = event.target.closest('.comfy-chat-generate-button');
+        return generateFromButton(button);
     }
 
     async function setupGeneratedState(btn, id) {
+        delete btn.dataset.processing;
         btn.textContent = '重新生成';
         btn.disabled = false;
         btn.className = 'comfy-button comfy-chat-generate-button';
 
         const newBtn = btn.cloneNode(true);
+        delete newBtn.dataset.processing;
         btn.parentNode.replaceChild(newBtn, btn);
 
         const group = newBtn.closest('.comfy-button-group');
+        const isStoryboard = group?.dataset?.source === 'storyboard';
+        if (isStoryboard) {
+            const storyboardPanel = group.closest('.comfy-storyboard-panel');
+            storyboardPanel?.classList.remove('is-queued', 'is-generating', 'is-error', 'is-cancelled');
+            storyboardPanel?.classList.add('is-generated');
+            const status = storyboardPanel?.querySelector('.comfy-storyboard-status');
+            if (status) status.textContent = '已生成';
+        }
 
-        if (!group.querySelector('.comfy-delete-button')) {
+        if (!isStoryboard && !group.querySelector('.comfy-delete-button')) {
             const delBtn = document.createElement('button');
             delBtn.textContent = '删除';
             delBtn.className = 'comfy-button error comfy-delete-button';
@@ -241,7 +377,7 @@ export function createGenerateButtonController({
                 await deleteImageFromCache(id);
                 group.classList.remove('comfy-buttons-hidden');
                 getGeneratedImageContainer(group)?.remove();
-                newBtn.textContent = '开始生成';
+                newBtn.textContent = group.dataset.source === 'ai_prompt' ? '生成图片' : (group.dataset.source === 'storyboard' ? '生图' : '开始生成');
                 delBtn.remove();
             });
             newBtn.insertAdjacentElement('afterend', delBtn);
@@ -273,6 +409,7 @@ export function createGenerateButtonController({
     }
 
     return {
+        generateFromGroup,
         onGenerateButtonClick,
         setupGeneratedState,
     };

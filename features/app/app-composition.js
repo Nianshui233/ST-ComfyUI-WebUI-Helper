@@ -132,6 +132,7 @@ export function createComfyWebuiHelperApp({
         getContext,
         imageCacheDB,
         displayImage: generationStack.displayImage,
+        generateFromGroup: (...args) => generationStack.generateButtonController.generateFromGroup(...args),
         setupGeneratedState: (...args) => generationStack.generateButtonController.setupGeneratedState(...args),
         getStableMessageId,
         checkSendingStatus,

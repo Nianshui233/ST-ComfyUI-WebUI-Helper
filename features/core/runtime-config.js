@@ -130,6 +130,7 @@ export const DEFAULT_SETTINGS = {
     aiPromptThinkingStrategy: 'auto',
     aiPromptThinkingEffort: 'medium',
     aiPromptThinkingBudget: 2048,
+    storyboardEnabled: false,
 };
 
 export const EXPORTABLE_STORAGE_KEYS = createExportableStorageKeys({

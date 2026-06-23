@@ -11,12 +11,18 @@ export function createAiPromptGenerateButtons({
     setupGeneratedState,
     checkSendingStatus,
 }) {
-    function buildGenerateButtonGroup(prompt, messageId, source = 'tag') {
+    function buildGenerateButtonGroup(prompt, messageId, source = 'tag', options = {}) {
         const cleanPrompt = String(prompt || '').trim();
         const encodedPrompt = escapeHTML(cleanPrompt);
         const generationId = simpleHash(`${source}_${cleanPrompt}_${messageId}`);
-        const label = source === 'ai_prompt' ? '生成图片' : '开始生成';
-        return `<span class="comfy-button-group" data-generation-id="${generationId}" data-processed-tag="${source === 'tag'}" data-source="${escapeHTML(source)}"><button type="button" class="comfy-button comfy-chat-generate-button" data-prompt="${encodedPrompt}">${label}</button></span>`;
+        const label = source === 'ai_prompt' ? '生成图片' : (source === 'storyboard' ? '生图' : '开始生成');
+        const slotAttr = options.slotSelector
+            ? ` data-image-slot="${escapeHTML(options.slotSelector)}"`
+            : '';
+        const progressSlotAttr = options.progressSlotSelector
+            ? ` data-progress-slot="${escapeHTML(options.progressSlotSelector)}"`
+            : '';
+        return `<span class="comfy-button-group" data-generation-id="${generationId}" data-processed-tag="${source === 'tag'}" data-source="${escapeHTML(source)}"${slotAttr}${progressSlotAttr}><button type="button" class="comfy-button comfy-chat-generate-button" data-prompt="${encodedPrompt}">${label}</button></span>`;
     }
 
     async function setupGenerateButtonGroup(group, { allowAutoGenerate = false } = {}) {

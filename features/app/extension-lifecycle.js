@@ -77,7 +77,7 @@ export function createExtensionLifecycle({
         });
 
         mainChat.addEventListener('click', (event) => {
-            const btn = event.target.closest('.comfy-ai-prompt-action');
+            const btn = event.target.closest('.comfy-ai-prompt-action, .comfy-storyboard-action, .comfy-storyboard-button');
             if (btn) onAiPromptActionClick(event);
         });
     }

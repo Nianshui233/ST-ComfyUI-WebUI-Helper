@@ -83,6 +83,7 @@ const SETTINGS_TO_LOAD = {
     aiPromptThinkingStrategy: ['comfyui_ai_prompt_thinking_strategy', DEFAULT_SETTINGS.aiPromptThinkingStrategy],
     aiPromptThinkingEffort: ['comfyui_ai_prompt_thinking_effort', DEFAULT_SETTINGS.aiPromptThinkingEffort],
     aiPromptThinkingBudget: ['comfyui_ai_prompt_thinking_budget', DEFAULT_SETTINGS.aiPromptThinkingBudget],
+    storyboardEnabled: ['comfyui_storyboard_enabled', DEFAULT_SETTINGS.storyboardEnabled],
 };
 
 export function createSettingsController({

@@ -27,6 +27,7 @@ export function createAiPromptSettingsReader({ getStoredValues }) {
             ['comfyui_ai_prompt_thinking_strategy', DEFAULT_SETTINGS.aiPromptThinkingStrategy],
             ['comfyui_ai_prompt_thinking_effort', DEFAULT_SETTINGS.aiPromptThinkingEffort],
             ['comfyui_ai_prompt_thinking_budget', DEFAULT_SETTINGS.aiPromptThinkingBudget],
+            ['comfyui_storyboard_enabled', DEFAULT_SETTINGS.storyboardEnabled],
         ]);
 
         const provider = String(stored.comfyui_ai_prompt_provider || DEFAULT_SETTINGS.aiPromptProvider).trim();
@@ -52,6 +53,7 @@ export function createAiPromptSettingsReader({ getStoredValues }) {
             thinkingStrategy: ['auto', 'openai', 'anthropic', 'deepseek'].includes(thinkingStrategy) ? thinkingStrategy : DEFAULT_SETTINGS.aiPromptThinkingStrategy,
             thinkingEffort: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'].includes(thinkingEffort) ? thinkingEffort : DEFAULT_SETTINGS.aiPromptThinkingEffort,
             thinkingBudget: Math.min(32000, Math.max(1024, parseInt(stored.comfyui_ai_prompt_thinking_budget, 10) || DEFAULT_SETTINGS.aiPromptThinkingBudget)),
+            storyboardEnabled: !!stored.comfyui_storyboard_enabled,
         };
     }
 

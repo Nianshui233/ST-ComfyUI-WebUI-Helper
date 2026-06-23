@@ -1,3 +1,14 @@
+function getCustomProgressHost(anchorElement) {
+    const selector = anchorElement?.dataset?.progressSlot;
+    if (!selector) return null;
+    const root = anchorElement.closest('.comfy-storyboard-panel')
+        || anchorElement.closest('.comfy-ai-prompt-panel')
+        || anchorElement.parentElement;
+    return root?.querySelector(selector)
+        || anchorElement.parentElement?.querySelector(selector)
+        || null;
+}
+
 export function createProgressUI(tracker, anchorElement) {
     tracker.remove();
     tracker.container = document.createElement('div');
@@ -15,6 +26,12 @@ export function createProgressUI(tracker, anchorElement) {
     tracker.cancelBtn.className = 'comfy-button error comfy-cancel-button';
     tracker.cancelBtn.textContent = '取消';
     tracker.cancelBtn.addEventListener('click', () => { tracker.cancel(); });
+    const customHost = getCustomProgressHost(anchorElement);
+    if (customHost) {
+        customHost.innerHTML = '';
+        customHost.append(tracker.container, tracker.text, tracker.apiTelemetry, tracker.cancelBtn);
+        return;
+    }
     anchorElement.insertAdjacentElement('afterend', tracker.cancelBtn);
     anchorElement.insertAdjacentElement('afterend', tracker.apiTelemetry);
     anchorElement.insertAdjacentElement('afterend', tracker.text);

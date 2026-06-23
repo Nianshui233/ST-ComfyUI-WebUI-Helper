@@ -133,6 +133,7 @@ export function createPanelListenerStack({
         detectAiPromptModels,
         switchMode,
         moveAdvancedSectionsToTab,
+        manualScan,
         img2imgController,
         updateSelectedEmbeddingsDisplay,
         updateComfyUISelectedLorasDisplay,

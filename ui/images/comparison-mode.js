@@ -3,11 +3,22 @@ export function createComparisonMode() {
         oldImageSrc: null,
 
         getImageContainer(group) {
+            const customSlotSelector = group?.dataset?.imageSlot;
+            if (customSlotSelector) {
+                const customRoot = group.closest('.comfy-storyboard-panel')
+                    || group.closest('.comfy-ai-prompt-panel')
+                    || group.parentElement;
+                const customContainer = customRoot?.querySelector(`${customSlotSelector} .comfy-image-container`)
+                    || group.parentElement?.querySelector(`${customSlotSelector} .comfy-image-container`);
+                if (customContainer) return customContainer;
+            }
+
             return group.closest('.comfy-ai-prompt-panel')?.querySelector('.comfy-ai-prompt-image-slot .comfy-image-container')
                 || group.nextElementSibling;
         },
 
         captureOldImage(group) {
+            this.oldImageSrc = null;
             const container = this.getImageContainer(group);
             if (container?.classList.contains('comfy-image-container')) {
                 const img = container.querySelector('img');

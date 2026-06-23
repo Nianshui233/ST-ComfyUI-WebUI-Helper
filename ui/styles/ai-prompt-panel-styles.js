@@ -194,6 +194,204 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
             color: var(--vp-accent-color);
             font-variant-numeric: tabular-nums;
         }
+        .comfy-storyboard-block {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(102, 215, 199, 0.18);
+        }
+        .comfy-storyboard-topline {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .comfy-storyboard-topline b {
+            color: var(--vp-text-color);
+            font-size: 12px;
+        }
+        .comfy-storyboard-topline span,
+        .comfy-storyboard-status,
+        .comfy-storyboard-note,
+        .comfy-storyboard-continuity {
+            color: var(--vp-text-muted);
+            font-size: 11px;
+        }
+        .comfy-storyboard-top-actions,
+        .comfy-storyboard-panel-actions,
+        .comfy-storyboard-panel-tools {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+        .comfy-storyboard-continuity {
+            margin: 0 0 8px;
+            padding: 7px 9px;
+            border: 1px solid rgba(233, 180, 76, 0.18);
+            border-radius: var(--vp-radius-md);
+            background: rgba(233, 180, 76, 0.055);
+            line-height: 1.45;
+        }
+        .comfy-storyboard-panels {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 8px;
+            align-items: start;
+        }
+        .comfy-storyboard-panel {
+            min-width: 0;
+            padding: 9px;
+            border: 1px solid rgba(244, 235, 214, 0.12);
+            border-left: 3px solid var(--vp-warning-color);
+            border-radius: var(--vp-radius-md);
+            background: rgba(7, 9, 11, 0.24);
+            transition: border-color var(--vp-dur-fast), background var(--vp-dur-fast), box-shadow var(--vp-dur-fast);
+        }
+        .comfy-storyboard-panel.is-queued {
+            border-left-color: var(--vp-border-strong);
+        }
+        .comfy-storyboard-panel.is-generating {
+            border-color: rgba(102, 215, 199, 0.52);
+            border-left-color: var(--vp-accent-color);
+            background: linear-gradient(180deg, rgba(102, 215, 199, 0.1), rgba(7, 9, 11, 0.24));
+            box-shadow: inset 0 0 0 1px rgba(102, 215, 199, 0.08);
+        }
+        .comfy-storyboard-panel.is-generated {
+            border-left-color: var(--vp-success-color);
+        }
+        .comfy-storyboard-panel.is-error {
+            border-left-color: var(--vp-error-color);
+        }
+        .comfy-storyboard-panel-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 5px;
+        }
+        .comfy-storyboard-index {
+            color: var(--vp-warning-color);
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .comfy-storyboard-beat {
+            margin-bottom: 6px;
+            color: var(--vp-text-color);
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .comfy-storyboard-note {
+            margin: 0 0 7px;
+            line-height: 1.4;
+        }
+        .comfy-storyboard-prompt-drawer {
+            margin-top: 7px;
+            padding: 8px;
+            border: 1px solid rgba(102, 215, 199, 0.16);
+            border-radius: var(--vp-radius-md);
+            background: rgba(0, 0, 0, 0.18);
+        }
+        .comfy-storyboard-prompt-drawer[hidden] { display: none !important; }
+        .comfy-storyboard-prompt-textarea {
+            width: 100%;
+            min-height: 96px;
+            box-sizing: border-box;
+            margin-top: 6px;
+            padding: 8px 10px;
+            color: var(--vp-text-color);
+            font-family: var(--vp-font);
+            font-size: 12px;
+            line-height: 1.45;
+            resize: vertical;
+            border: 1px solid var(--vp-border-strong);
+            border-radius: var(--vp-radius-md);
+            background: rgba(0, 0, 0, 0.28);
+        }
+        .comfy-storyboard-image-slot {
+            display: block;
+            width: 100%;
+            margin-top: 7px;
+        }
+        .comfy-storyboard-image-slot:empty { display: none; }
+        .comfy-storyboard-panel.has-image .comfy-storyboard-image-slot,
+        .comfy-storyboard-image-slot.has-image {
+            display: block !important;
+            min-height: 0;
+        }
+        .comfy-storyboard-panel.is-layout-refreshing,
+        .comfy-storyboard-image-slot.is-layout-refreshing {
+            transform: translateZ(0);
+        }
+        .comfy-storyboard-panel.is-queued .comfy-storyboard-image-slot:empty,
+        .comfy-storyboard-panel.is-generating .comfy-storyboard-image-slot:empty,
+        .comfy-storyboard-panel.is-error .comfy-storyboard-image-slot:empty,
+        .comfy-storyboard-panel.is-cancelled .comfy-storyboard-image-slot:empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 158px;
+            box-sizing: border-box;
+            border: 1px dashed rgba(244, 235, 214, 0.16);
+            border-radius: var(--vp-radius-md);
+            background: rgba(0, 0, 0, 0.18);
+            color: var(--vp-text-muted);
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .comfy-storyboard-panel.is-queued .comfy-storyboard-image-slot:empty::before {
+            content: '等待队列';
+        }
+        .comfy-storyboard-panel.is-generating .comfy-storyboard-image-slot:empty::before {
+            content: '图片生成中...';
+            color: var(--vp-accent-color);
+        }
+        .comfy-storyboard-panel.is-error .comfy-storyboard-image-slot:empty::before {
+            content: '生成失败';
+            color: var(--vp-error-color);
+        }
+        .comfy-storyboard-panel.is-cancelled .comfy-storyboard-image-slot:empty::before {
+            content: '已取消';
+        }
+        .comfy-storyboard-image-slot .comfy-image-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 0;
+            background: rgba(0, 0, 0, 0.16);
+        }
+        .comfy-storyboard-panel-actions > .comfy-button-group {
+            display: inline-flex;
+            margin: 0;
+        }
+        .comfy-storyboard-progress-slot {
+            margin-top: 6px;
+        }
+        .comfy-storyboard-progress-slot:empty { display: none; }
+        .comfy-storyboard-progress-slot .comfy-progress-container {
+            margin-top: 0;
+        }
+        .comfy-storyboard-progress-slot .comfy-api-telemetry {
+            display: none;
+        }
+        .comfy-storyboard-progress-slot .comfy-cancel-button {
+            margin-top: 5px;
+        }
+        .comfy-storyboard-image-slot .comfy-image-container img {
+            width: auto !important;
+            max-width: 100% !important;
+            max-height: 280px !important;
+            object-fit: contain;
+            background: rgba(0, 0, 0, 0.24);
+        }
+        .comfy-storyboard-button {
+            border-color: rgba(233, 180, 76, 0.42);
+            background: rgba(233, 180, 76, 0.12);
+            color: #ffe8ad;
+        }
+        .comfy-ai-prompt-panel.is-storyboard-busy .comfy-storyboard-button,
+        .comfy-ai-prompt-panel.is-storyboard-busy .comfy-storyboard-action {
+            opacity: 0.58;
+        }
 
         #${panelId} .comfy-ai-prompt-options { display: grid; gap: var(--vp-space-2); margin-bottom: 14px; }
         #${panelId} .comfy-ai-prompt-options .comfy-auto-generate-label { margin: 0; }
@@ -359,6 +557,7 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
             .comfy-ai-prompt-actions > .comfy-button-group { display: grid; grid-template-columns: 1fr; }
             .comfy-ai-prompt-actions .comfy-button,
             .comfy-ai-prompt-actions .comfy-chat-generate-button { width: 100%; }
+            .comfy-storyboard-panels { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 480px) {

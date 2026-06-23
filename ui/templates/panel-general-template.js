@@ -25,8 +25,12 @@ export function getPanelGeneralTemplate({ panelId, modes }) {
 						</div>
 					</div>
 				</div>
-				<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-enable-comparison" type="checkbox" checked><b>图片对比</b><span>- 重新生成时显示新旧图片对比滑块</span></label></div>
-				<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-hide-buttons" type="checkbox"><b>隐藏按钮</b><span>- 生成后隐藏按钮，双击图片重新生成</span></label></div>
+				<fieldset>
+					<legend>基础功能</legend>
+					<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-enable-comparison" type="checkbox" checked><b>图片对比</b><span>- 重新生成时显示新旧图片对比滑块</span></label></div>
+					<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-hide-buttons" type="checkbox"><b>隐藏按钮</b><span>- 生成后隐藏按钮，双击图片重新生成</span></label></div>
+					<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-storyboard-enabled" type="checkbox"><b>启用连环画模式</b><span>- 在消息下方显示分镜按钮，将当前剧情拆成多格提示词并逐格生图</span></label></div>
+				</fieldset>
 				<fieldset>
 					<legend>尺寸设置</legend>
 					<div class="comfy-settings-grid" style="margin-bottom: 0;">

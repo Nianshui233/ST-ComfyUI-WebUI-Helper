@@ -17,9 +17,19 @@ export function createAiPromptMessageRenderer({
     buildGenerateButtonGroup,
     setupGenerateButtonGroups,
     generateAiPromptForMessage,
+    renderStoryboardForPanel,
     showToast,
     logger = console,
 }) {
+    async function renderStoryboardIfNeeded(messageNode, panel, settings) {
+        renderStoryboardForPanel?.({
+            messageNode,
+            panel,
+            settings,
+        });
+        await setupGenerateButtonGroups(panel, { allowAutoGenerate: false });
+    }
+
     async function renderAiPromptControlsForMessage(messageNode, { allowAuto = false, force = false } = {}) {
         const mesText = messageNode?.querySelector('.mes_text');
         if (!mesText) return;
@@ -63,6 +73,7 @@ export function createAiPromptMessageRenderer({
         }
         if (!force && existing && prompt && panel.dataset.promptHash === promptHash) {
             await setupGenerateButtonGroups(panel, { allowAutoGenerate: false });
+            await renderStoryboardIfNeeded(messageNode, panel, settings);
             return;
         }
 
@@ -79,8 +90,10 @@ export function createAiPromptMessageRenderer({
                 buildGenerateButtonGroup,
             });
             await setupGenerateButtonGroups(panel, { allowAutoGenerate: false });
+            await renderStoryboardIfNeeded(messageNode, panel, settings);
         } else {
             renderAiPromptEmptyPanel(panel);
+            await renderStoryboardIfNeeded(messageNode, panel, settings);
 
             const isLatestMessage = index === context.chat.length - 1;
             const shouldAutoGenerate = settings.auto && allowAuto && isLatestMessage && !messageNode.dataset.aiPromptAutoTriggered && !isMessageStreaming(messageNode);

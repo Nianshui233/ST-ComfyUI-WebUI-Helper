@@ -86,6 +86,7 @@ export function createExportableStorageKeys(storageKeys) {
         'comfyui_ai_prompt_thinking_strategy',
         'comfyui_ai_prompt_thinking_effort',
         'comfyui_ai_prompt_thinking_budget',
+        'comfyui_storyboard_enabled',
         'comfyui_panel_position',
     ];
 }

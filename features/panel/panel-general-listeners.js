@@ -14,6 +14,7 @@ export function createPanelGeneralListeners({
     detectAiPromptModels,
     switchMode,
     moveAdvancedSectionsToTab,
+    manualScan,
     img2imgController,
     updateSelectedEmbeddingsDisplay,
     updateComfyUISelectedLorasDisplay,
@@ -51,6 +52,9 @@ export function createPanelGeneralListeners({
         initSizePresetListeners({ panel, showToast });
         initSeedListeners();
         img2imgController.initListeners();
+        inputs.storyboardEnabled?.addEventListener('change', () => {
+            setTimeout(() => manualScan?.scanNow?.(), 650);
+        });
     }
 
     function initTabListeners() {

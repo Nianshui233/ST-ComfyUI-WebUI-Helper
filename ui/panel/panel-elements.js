@@ -57,6 +57,7 @@ export function getPanelInputs() {
         negativePrompt: document.getElementById('comfyui-negative-prompt'),
         enableComparison: document.getElementById('comfyui-enable-comparison'),
         hideButtons: document.getElementById('comfyui-hide-buttons'),
+        storyboardEnabled: document.getElementById('comfyui-storyboard-enabled'),
         loraAutoAppendTriggers: document.getElementById('comfyui-lora-auto-append-triggers'),
         loraStrictInjection: document.getElementById('comfyui-lora-strict-injection'),
         loraSaveDebugWorkflow: document.getElementById('comfyui-lora-save-debug-workflow'),

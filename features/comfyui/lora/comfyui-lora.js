@@ -39,6 +39,22 @@ export {
     normalizeLoraInjectionMode,
 } from './comfyui-lora-injection-chain.js';
 
+function getArrayCount(value) {
+    return Array.isArray(value) ? value.length : 0;
+}
+
+function formatLoraReportSummary(report) {
+    return [
+        `strategy=${report.strategy || 'pending'}`,
+        `mode=${report.effectiveInjectionMode || report.injectionMode || 'unknown'}`,
+        `nodes=${getArrayCount(report.insertedNodeIds)}`,
+        `samplers=${getArrayCount(report.samplerTargets)}`,
+        `clips=${getArrayCount(report.clipTargets)}`,
+        `warnings=${getArrayCount(report.warnings)}`,
+        `errors=${getArrayCount(report.errors)}`,
+    ].join(', ');
+}
+
 export function intelligentLoraInjection(workflow, selectedLoras, objectInfo, options = {}) {
     const report = createLoraInjectionReport(selectedLoras, options);
     if (!selectedLoras || selectedLoras.length === 0) return report;
@@ -145,7 +161,7 @@ export function intelligentLoraInjection(workflow, selectedLoras, objectInfo, op
 
     if (report.samplerTargets.length > 0) {
         report.strategy = 'sampler-trace';
-        console.log('[AI Gen] LoRA链路追踪注入完成:', report);
+        console.info(`[AI Gen] LoRA链路追踪注入完成: ${formatLoraReportSummary(report)}`);
         return validateLoraInjection(workflow, report);
     }
 
@@ -207,6 +223,6 @@ export function intelligentLoraInjection(workflow, selectedLoras, objectInfo, op
 
     report.strategy = 'fallback-global-source';
     report.warnings.push('未找到采样器链路，已使用全局源头回退注入');
-    console.log('[AI Gen] LoRA回退注入完成:', report);
+    console.info(`[AI Gen] LoRA回退注入完成: ${formatLoraReportSummary(report)}`);
     return validateLoraInjection(workflow, report);
 }

@@ -6,6 +6,24 @@ export function createImageRenderer({
     logger = console,
 }) {
     function getOrCreateImageContainer(anchorElement) {
+        const customSlotSelector = anchorElement?.dataset?.imageSlot;
+        if (customSlotSelector) {
+            const customRoot = anchorElement.closest('.comfy-storyboard-panel')
+                || anchorElement.closest('.comfy-ai-prompt-panel')
+                || anchorElement.parentElement;
+            const customSlot = customRoot?.querySelector(customSlotSelector)
+                || anchorElement.parentElement?.querySelector(customSlotSelector);
+            if (customSlot) {
+                let container = customSlot.querySelector('.comfy-image-container');
+                if (!container) {
+                    container = document.createElement('span');
+                    container.className = 'comfy-image-container';
+                    customSlot.appendChild(container);
+                }
+                return container;
+            }
+        }
+
         const aiPromptSlot = anchorElement.closest('.comfy-ai-prompt-panel')?.querySelector('.comfy-ai-prompt-image-slot');
         if (aiPromptSlot) {
             let container = aiPromptSlot.querySelector('.comfy-image-container');
@@ -24,6 +42,46 @@ export function createImageRenderer({
             anchorElement.insertAdjacentElement('afterend', container);
         }
         return container;
+    }
+
+    function forceStoryboardLayoutRefresh(container) {
+        const slot = container?.closest('.comfy-storyboard-image-slot');
+        const panel = slot?.closest('.comfy-storyboard-panel');
+        if (!slot || !panel) return;
+
+        const frame = typeof requestAnimationFrame === 'function'
+            ? requestAnimationFrame
+            : (callback) => setTimeout(callback, 0);
+        const grid = panel.closest('.comfy-storyboard-panels');
+        const chat = panel.closest('#chat') || document.querySelector('#chat');
+
+        slot.classList.add('has-image');
+        panel.classList.add('has-image');
+        void slot.offsetHeight;
+
+        frame(() => {
+            panel.classList.add('is-layout-refreshing');
+            slot.classList.add('is-layout-refreshing');
+            void panel.offsetHeight;
+
+            frame(() => {
+                panel.classList.remove('is-layout-refreshing');
+                slot.classList.remove('is-layout-refreshing');
+                grid?.dispatchEvent(new CustomEvent('comfy-storyboard-layout-refresh', { bubbles: true }));
+                chat?.dispatchEvent(new CustomEvent('comfy-storyboard-layout-refresh', { bubbles: true }));
+                if (typeof window !== 'undefined') window.dispatchEvent(new Event('resize'));
+            });
+        });
+    }
+
+    function bindImageLayoutRefresh(img, container) {
+        const refresh = () => forceStoryboardLayoutRefresh(container);
+        img.addEventListener('load', refresh, { once: true });
+        img.addEventListener('error', refresh, { once: true });
+        if (typeof img.decode === 'function') {
+            img.decode().then(refresh).catch(() => {});
+        }
+        refresh();
     }
 
     function bindTooltip(img) {
@@ -66,6 +124,7 @@ export function createImageRenderer({
             bindTooltip(img);
             img.addEventListener('click', () => window.open(imageUrl, '_blank'));
             container.appendChild(img);
+            bindImageLayoutRefresh(img, container);
         }
     }
 
@@ -106,6 +165,7 @@ export function createImageRenderer({
         bindTooltip(img);
         await applyDisplaySize(img);
         container.appendChild(img);
+        bindImageLayoutRefresh(img, container);
     }
 
     return {
