@@ -133,6 +133,67 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
             text-shadow: none;
         }
         .comfy-ai-prompt-actions .comfy-ai-prompt-action.primary:hover:not(:disabled) { filter: brightness(1.08); }
+        .comfy-ai-prompt-progress {
+            display: grid;
+            grid-template-columns: 72px minmax(0, 1fr);
+            gap: 6px 8px;
+            align-items: center;
+            margin-top: 6px;
+            padding: 6px 8px;
+            border: 1px solid rgba(102, 215, 199, 0.18);
+            border-radius: var(--vp-radius-md);
+            background: rgba(7, 9, 11, 0.26);
+        }
+        .comfy-ai-prompt-progress[hidden] { display: none !important; }
+        .comfy-ai-prompt-progress-bar {
+            position: relative;
+            grid-column: 1;
+            grid-row: 1;
+            height: 5px;
+            overflow: hidden;
+            border-radius: var(--vp-radius-pill);
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .comfy-ai-prompt-progress-bar span {
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 42%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, rgba(102, 215, 199, 0.2), var(--vp-accent-color), rgba(102, 215, 199, 0.2));
+            animation: comfy-ai-progress-sweep 1.15s ease-in-out infinite;
+        }
+        .comfy-ai-prompt-progress[data-phase="done"] .comfy-ai-prompt-progress-bar span {
+            width: 100%;
+            animation: none;
+            background: var(--vp-success-color);
+        }
+        .comfy-ai-prompt-progress[data-phase="error"] .comfy-ai-prompt-progress-bar span {
+            width: 100%;
+            animation: none;
+            background: var(--vp-error-color);
+        }
+        .comfy-ai-prompt-progress-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            grid-column: 2;
+            grid-row: 1;
+            min-width: 0;
+            color: var(--vp-text-muted);
+            font-size: 11px;
+            line-height: 1.35;
+        }
+        .comfy-ai-prompt-progress-detail {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .comfy-ai-prompt-progress-time {
+            flex: 0 0 auto;
+            color: var(--vp-accent-color);
+            font-variant-numeric: tabular-nums;
+        }
 
         #${panelId} .comfy-ai-prompt-options { display: grid; gap: var(--vp-space-2); margin-bottom: 14px; }
         #${panelId} .comfy-ai-prompt-options .comfy-auto-generate-label { margin: 0; }
@@ -152,6 +213,11 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
         @keyframes comfy-ai-pulse {
             0%, 100% { opacity: 0.45; transform: scale(0.82); }
             50% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes comfy-ai-progress-sweep {
+            0% { transform: translateX(-80%); }
+            50% { transform: translateX(62%); }
+            100% { transform: translateX(180%); }
         }
         @keyframes comfy-shake {
             0%, 100% { transform: translateX(0); }

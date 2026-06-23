@@ -135,6 +135,11 @@ export function createComfyWebuiHelperApp({
         checkSendingStatus,
         streamingState,
         manualScan,
+        saveSettings: () => {
+            const panel = document.getElementById(PANEL_ID);
+            if (!panel) return Promise.resolve();
+            return settingsController.saveSettings(getPanelInputs());
+        },
         showToast,
         logger,
     });

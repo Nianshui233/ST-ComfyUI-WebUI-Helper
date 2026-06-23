@@ -31,6 +31,45 @@ export function setAiPromptPanelBusy(panel, message, busy = true, { includeGener
     });
 }
 
+export function updateAiPromptProgress(panel, {
+    detail = '',
+    elapsedMs = null,
+    phase = '',
+} = {}) {
+    if (!panel) return;
+    const progress = panel.querySelector('.comfy-ai-prompt-progress');
+    if (!progress) return;
+
+    clearTimeout(Number(progress.dataset.hideTimer || 0));
+    delete progress.dataset.hideTimer;
+    progress.hidden = false;
+    if (phase) progress.dataset.phase = phase;
+
+    const detailNode = progress.querySelector('.comfy-ai-prompt-progress-detail');
+    if (detailNode) detailNode.textContent = detail;
+
+    const elapsedNode = progress.querySelector('.comfy-ai-prompt-progress-time');
+    if (elapsedNode && elapsedMs !== null) {
+        elapsedNode.textContent = `${(elapsedMs / 1000).toFixed(1)}s`;
+    }
+
+    if (phase === 'done' || phase === 'error') {
+        progress.dataset.hideTimer = String(setTimeout(() => {
+            progress.hidden = true;
+        }, 2500));
+    }
+}
+
+function getAiPromptProgressTemplate() {
+    return `<div class="comfy-ai-prompt-progress" hidden>
+        <div class="comfy-ai-prompt-progress-bar"><span></span></div>
+        <div class="comfy-ai-prompt-progress-meta">
+            <span class="comfy-ai-prompt-progress-detail">等待开始</span>
+            <span class="comfy-ai-prompt-progress-time">0.0s</span>
+        </div>
+    </div>`;
+}
+
 export function getAiPromptEditorPrompt(panel, fallbackPrompt = '') {
     const textarea = panel?.querySelector('.comfy-ai-prompt-textarea');
     return textarea?.value?.trim() || fallbackPrompt;
@@ -74,6 +113,7 @@ export function renderAiPromptReadyPanel({
             ${buildGenerateButtonGroup(prompt, messageId, 'ai_prompt')}
             <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="toggle-edit" aria-expanded="${isEditorOpen ? 'true' : 'false'}">${isEditorOpen ? '收起提示词' : '绘画提示词'}</button>
         </div>
+        ${getAiPromptProgressTemplate()}
         <div class="comfy-ai-prompt-image-slot"></div>
         <div class="comfy-ai-prompt-drawer" ${isEditorOpen ? '' : 'hidden'}>
             <button type="button" class="comfy-ai-prompt-summary comfy-ai-prompt-action" data-action="toggle-edit" aria-expanded="${isEditorOpen ? 'true' : 'false'}" title="点击收起绘画提示词">${escapeHTML(summary)}</button>
@@ -102,6 +142,7 @@ export function renderAiPromptEmptyPanel(panel) {
             <button type="button" class="comfy-button comfy-ai-prompt-action primary" data-action="quick">AI生图</button>
             <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="generate">AI提示词</button>
         </div>
+        ${getAiPromptProgressTemplate()}
         <div class="comfy-ai-prompt-image-slot"></div>
     `;
 }

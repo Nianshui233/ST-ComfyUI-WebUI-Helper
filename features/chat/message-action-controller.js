@@ -118,6 +118,7 @@ export function createMessageActionController({
             if (streamingState.activeMessages.has(messageId)) {
                 markMessageAsStreamComplete(messageNode);
             }
+            if (messageNode.dataset.aiPromptGenerating === 'true') return;
             await renderAiPromptControlsForMessage(messageNode, { allowAuto: forceReplace || !isMessageStreaming(messageNode) });
             return;
         }
@@ -142,7 +143,9 @@ export function createMessageActionController({
         });
 
         await setupGenerateButtonGroups(mesText, { allowAutoGenerate: true });
-        await renderAiPromptControlsForMessage(messageNode, { allowAuto: forceReplace || !isMessageStreaming(messageNode) });
+        if (messageNode.dataset.aiPromptGenerating !== 'true') {
+            await renderAiPromptControlsForMessage(messageNode, { allowAuto: forceReplace || !isMessageStreaming(messageNode) });
+        }
 
         if (streamingState.activeMessages.has(messageId)) {
             markMessageAsStreamComplete(messageNode);

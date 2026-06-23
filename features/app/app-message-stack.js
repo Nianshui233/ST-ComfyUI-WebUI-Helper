@@ -16,6 +16,7 @@ export function createMessageStack({
     checkSendingStatus,
     streamingState,
     manualScan,
+    saveSettings,
     showToast,
     logger = console,
 }) {
@@ -34,6 +35,7 @@ export function createMessageStack({
         getStableMessageId,
         checkSendingStatus,
         isMessageStreaming: (...args) => messageActionController?.isMessageStreaming?.(...args) ?? false,
+        saveSettings,
         showToast,
         logger,
     });

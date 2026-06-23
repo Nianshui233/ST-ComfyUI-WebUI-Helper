@@ -2,6 +2,7 @@ import {
     renderAiPromptEmptyPanel,
     renderAiPromptReadyPanel,
     setAiPromptPanelBusy,
+    updateAiPromptProgress,
 } from './ai-prompt-panel-renderer.js';
 import { simpleHash } from '../../lib/core/utils.js';
 
@@ -23,6 +24,9 @@ export function createAiPromptMessageRenderer({
         if (!mesText) return;
 
         const existing = messageNode.querySelector('.comfy-ai-prompt-panel');
+        if (messageNode.dataset.aiPromptGenerating === 'true') {
+            if (existing) return;
+        }
         const settings = await getAiPromptSettings();
 
         if (!settings.enabled || !settings.showButtons || !isAiPromptEligibleMessage(messageNode)) {
@@ -84,11 +88,42 @@ export function createAiPromptMessageRenderer({
     function triggerAutoAiPromptGeneration(messageNode, settings) {
         messageNode.dataset.aiPromptAutoTriggered = 'true';
         setTimeout(() => {
+            if (messageNode.dataset.aiPromptGenerating === 'true') return;
+            messageNode.dataset.aiPromptGenerating = 'true';
             const autoPanel = messageNode.querySelector('.comfy-ai-prompt-panel');
             setAiPromptPanelBusy(autoPanel, '自动分析提示词中...');
-            generateAiPromptForMessage(messageNode)
-                .then(() => renderAiPromptControlsForMessage(messageNode, { allowAuto: false }))
+            const startedAt = Date.now();
+            let lastProgressPayload = null;
+            const reportProgress = (payload) => {
+                lastProgressPayload = payload;
+                updateAiPromptProgress(
+                    messageNode.querySelector('.comfy-ai-prompt-panel') || autoPanel,
+                    payload,
+                );
+            };
+            reportProgress({
+                detail: '自动分析：正在整理请求',
+                elapsedMs: 0,
+                phase: 'settings',
+            });
+            const progressTimer = setInterval(() => {
+                if (!lastProgressPayload) return;
+                reportProgress({
+                    ...lastProgressPayload,
+                    elapsedMs: Date.now() - startedAt,
+                });
+            }, 500);
+            generateAiPromptForMessage(messageNode, { progress: reportProgress })
                 .then(() => {
+                    delete messageNode.dataset.aiPromptGenerating;
+                    return renderAiPromptControlsForMessage(messageNode, { allowAuto: false, force: true });
+                })
+                .then(() => {
+                    reportProgress({
+                        detail: '绘图提示词已准备',
+                        elapsedMs: Date.now() - startedAt,
+                        phase: 'done',
+                    });
                     if (settings.autoGenerateImage) {
                         messageNode.querySelector('.comfy-ai-prompt-panel .comfy-chat-generate-button')?.click();
                     }
@@ -97,6 +132,15 @@ export function createAiPromptMessageRenderer({
                     logger.error('[AI Gen] 自动生成 AI 绘图提示词失败:', error);
                     showToast('warning', `AI绘图提示词生成失败: ${error.message || error}`);
                     setAiPromptPanelBusy(autoPanel, '分析失败', false);
+                    reportProgress({
+                        detail: error.message || String(error),
+                        elapsedMs: Date.now() - startedAt,
+                        phase: 'error',
+                    });
+                })
+                .finally(() => {
+                    clearInterval(progressTimer);
+                    delete messageNode.dataset.aiPromptGenerating;
                 });
         }, 150);
     }

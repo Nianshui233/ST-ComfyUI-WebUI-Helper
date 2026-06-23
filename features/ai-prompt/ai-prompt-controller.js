@@ -21,6 +21,7 @@ export function createAiPromptController({
     getStableMessageId,
     checkSendingStatus,
     isMessageStreaming,
+    saveSettings,
     showToast,
     logger = console,
 }) {
@@ -98,6 +99,7 @@ export function createAiPromptController({
         getChatMessageByNode,
         getStoredAiPrompt,
         renderAiPromptControlsForMessage,
+        saveCurrentSettings: saveSettings,
         saveAiPromptToMessage,
         showToast,
         logger,
