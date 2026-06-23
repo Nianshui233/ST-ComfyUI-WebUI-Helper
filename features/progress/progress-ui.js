@@ -28,7 +28,8 @@ export function createProgressUI(tracker, anchorElement) {
     tracker.cancelBtn.addEventListener('click', () => { tracker.cancel(); });
     const customHost = getCustomProgressHost(anchorElement);
     if (customHost) {
-        customHost.innerHTML = '';
+        customHost.classList.add('has-progress');
+        customHost.replaceChildren();
         customHost.append(tracker.container, tracker.text, tracker.apiTelemetry, tracker.cancelBtn);
         return;
     }
@@ -71,10 +72,14 @@ export function updateApiTelemetryUI(tracker, payload = {}) {
 }
 
 export function removeProgressUI(tracker) {
+    const customHost = tracker.container?.parentElement?.matches?.('.comfy-storyboard-progress-slot, .comfy-ai-prompt-progress-slot')
+        ? tracker.container.parentElement
+        : null;
     tracker.container?.remove();
     tracker.text?.remove();
     tracker.cancelBtn?.remove();
     tracker.apiTelemetry?.remove();
+    customHost?.classList.remove('has-progress');
     tracker.container = null;
     tracker.bar = null;
     tracker.text = null;

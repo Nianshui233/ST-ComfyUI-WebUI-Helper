@@ -1,6 +1,7 @@
 export function getChatImageStyles({ panelId, buttonId }) {
     return `        /* ---------- In-chat: generated image ---------- */
         .comfy-image-container {
+            position: relative;
             display: block;
             width: 100%;
             max-width: 100%;
@@ -8,6 +9,8 @@ export function getChatImageStyles({ panelId, buttonId }) {
             margin-top: var(--vp-space-3);
             overflow: hidden;
             clear: both;
+            contain: layout paint;
+            transform: translateZ(0);
         }
 
         body.comfy-helper-paused .comfy-ai-prompt-panel,
@@ -28,6 +31,25 @@ export function getChatImageStyles({ panelId, buttonId }) {
             border-radius: var(--vp-radius-md);
             background: rgba(0, 0, 0, 0.2);
             box-shadow: var(--vp-shadow-1);
+        }
+        .comfy-image-container-updating::after {
+            content: '生成中...';
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--vp-accent-color);
+            font-size: 12px;
+            font-weight: 650;
+            letter-spacing: 0;
+            background: rgba(0, 0, 0, 0.32);
+            border-radius: var(--vp-radius-md);
+            pointer-events: none;
+        }
+        .comfy-image-container-updating img {
+            opacity: 0.58;
+            filter: saturate(0.82);
         }
 
         /* ---------- In-chat: progress ---------- */

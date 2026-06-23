@@ -24,6 +24,7 @@ export function createGenerateButtonController({
     logger = console,
 }) {
     const generateThrottle = new Map();
+    const pendingStoryboardRefresh = new WeakSet();
 
     function getGeneratedImageContainer(group) {
         const customSlotSelector = group?.dataset?.imageSlot;
@@ -123,6 +124,30 @@ export function createGenerateButtonController({
         }
     }
 
+    function setImageUpdating(group, updating) {
+        const imageContainer = getGeneratedImageContainer(group);
+        if (!imageContainer?.classList?.contains('comfy-image-container')) return false;
+
+        const hasImage = !!imageContainer.querySelector('img');
+        const slot = imageContainer.closest('.comfy-storyboard-image-slot, .comfy-ai-prompt-image-slot');
+        const storyboardPanel = imageContainer.closest('.comfy-storyboard-panel');
+
+        imageContainer.classList.toggle('comfy-image-container-updating', updating && hasImage);
+        imageContainer.toggleAttribute('aria-busy', updating && hasImage);
+        slot?.classList.toggle('is-updating-image', updating && hasImage);
+
+        if (updating && hasImage) {
+            const height = imageContainer.getBoundingClientRect?.().height || 0;
+            if (height > 0) imageContainer.style.minHeight = `${Math.ceil(height)}px`;
+            slot?.classList.add('has-image');
+            storyboardPanel?.classList.add('has-image');
+        } else {
+            imageContainer.style.minHeight = '';
+        }
+
+        return hasImage;
+    }
+
     function refreshStoryboardPanelLayout(panel) {
         if (!panel) return;
         const slot = panel.querySelector('.comfy-storyboard-image-slot');
@@ -130,22 +155,16 @@ export function createGenerateButtonController({
             slot.classList.add('has-image');
             panel.classList.add('has-image');
         }
+        if (pendingStoryboardRefresh.has(panel)) return;
+        pendingStoryboardRefresh.add(panel);
 
         const frame = typeof requestAnimationFrame === 'function'
             ? requestAnimationFrame
             : (callback) => setTimeout(callback, 0);
-        void panel.offsetHeight;
         frame(() => {
-            panel.classList.add('is-layout-refreshing');
-            slot?.classList.add('is-layout-refreshing');
-            void panel.offsetHeight;
-            frame(() => {
-                panel.classList.remove('is-layout-refreshing');
-                slot?.classList.remove('is-layout-refreshing');
-                panel.closest('.comfy-storyboard-panels')?.dispatchEvent(new CustomEvent('comfy-storyboard-layout-refresh', { bubbles: true }));
-                panel.closest('#chat')?.dispatchEvent(new CustomEvent('comfy-storyboard-layout-refresh', { bubbles: true }));
-                if (typeof window !== 'undefined') window.dispatchEvent(new Event('resize'));
-            });
+            pendingStoryboardRefresh.delete(panel);
+            panel.closest('.comfy-storyboard-panels')?.dispatchEvent(new CustomEvent('comfy-storyboard-layout-refresh', { bubbles: true }));
+            panel.closest('#chat')?.dispatchEvent(new CustomEvent('comfy-storyboard-layout-refresh', { bubbles: true }));
         });
     }
 
@@ -201,11 +220,14 @@ export function createGenerateButtonController({
         button.textContent = '生成中...';
         button.disabled = true;
         button.className = 'comfy-button comfy-chat-generate-button testing';
+        const hasExistingImage = setImageUpdating(group, true);
         if (isStoryboard && storyboardPanel) {
             storyboardPanel.classList.remove('is-queued', 'is-generated', 'is-error', 'is-cancelled');
             storyboardPanel.classList.add('is-generating');
-            storyboardPanel.classList.remove('has-image');
-            storyboardPanel.querySelector('.comfy-storyboard-image-slot')?.classList.remove('has-image');
+            if (!hasExistingImage) {
+                storyboardPanel.classList.remove('has-image');
+                storyboardPanel.querySelector('.comfy-storyboard-image-slot')?.classList.remove('has-image');
+            }
             const status = storyboardPanel.querySelector('.comfy-storyboard-status');
             if (status) status.textContent = '生成中...';
             storyboardPanel.querySelectorAll('.comfy-storyboard-action').forEach(actionButton => {
@@ -230,7 +252,7 @@ export function createGenerateButtonController({
 
         clearComparisonUI(group);
         const oldContainer = getGeneratedImageContainer(group);
-        if (oldContainer?.classList.contains('comfy-image-container')) oldContainer.remove();
+        if (oldContainer?.classList.contains('comfy-image-container') && !oldContainer.querySelector('img')) oldContainer.remove();
 
         progressTracker.createUI(group);
 
@@ -256,6 +278,7 @@ export function createGenerateButtonController({
             } else {
                 await displayImage(group, generationId);
             }
+            setImageUpdating(group, false);
             if (isStoryboard) refreshStoryboardPanelLayout(storyboardPanel);
 
             if (comparisonEnabled && comparisonMode.oldImageSrc) {
@@ -263,8 +286,11 @@ export function createGenerateButtonController({
                 if (newImg?.src) comparisonMode.show(group, newImg.src);
             }
 
-            button.className = 'comfy-button comfy-chat-generate-button success';
-            button.textContent = '成功';
+            button.className = isStoryboard
+                ? 'comfy-button comfy-chat-generate-button'
+                : 'comfy-button comfy-chat-generate-button success';
+            button.textContent = isStoryboard ? '重新生成' : '成功';
+            button.disabled = isStoryboard ? false : button.disabled;
             if (isStoryboard && storyboardPanel) {
                 storyboardPanel.classList.remove('is-queued', 'is-error', 'is-cancelled');
                 storyboardPanel.classList.add('is-generated');
@@ -276,7 +302,6 @@ export function createGenerateButtonController({
             }
             generationResult = { status: 'success', generationId };
             if (isStoryboard) {
-                await setupGeneratedState(button, generationId);
                 refreshStoryboardPanelLayout(storyboardPanel);
             } else {
                 setTimeout(() => setupGeneratedState(button, generationId), 2000);
@@ -324,6 +349,7 @@ export function createGenerateButtonController({
         } finally {
             delete button.dataset.processing;
             progressTracker.remove();
+            setImageUpdating(group, false);
             if (isStoryboard && storyboardPanel) {
                 storyboardPanel.classList.remove('is-generating');
                 storyboardPanel.querySelectorAll('.comfy-storyboard-action').forEach(actionButton => {
@@ -355,12 +381,14 @@ export function createGenerateButtonController({
         btn.disabled = false;
         btn.className = 'comfy-button comfy-chat-generate-button';
 
-        const newBtn = btn.cloneNode(true);
-        delete newBtn.dataset.processing;
-        btn.parentNode.replaceChild(newBtn, btn);
-
-        const group = newBtn.closest('.comfy-button-group');
+        const group = btn.closest('.comfy-button-group');
         const isStoryboard = group?.dataset?.source === 'storyboard';
+        const newBtn = isStoryboard ? btn : btn.cloneNode(true);
+        if (!isStoryboard) {
+            delete newBtn.dataset.processing;
+            btn.parentNode.replaceChild(newBtn, btn);
+        }
+
         if (isStoryboard) {
             const storyboardPanel = group.closest('.comfy-storyboard-panel');
             storyboardPanel?.classList.remove('is-queued', 'is-generating', 'is-error', 'is-cancelled');

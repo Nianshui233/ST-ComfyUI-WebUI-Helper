@@ -240,12 +240,14 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
             align-items: start;
         }
         .comfy-storyboard-panel {
+            position: relative;
             min-width: 0;
             padding: 9px;
             border: 1px solid rgba(244, 235, 214, 0.12);
             border-left: 3px solid var(--vp-warning-color);
             border-radius: var(--vp-radius-md);
             background: rgba(7, 9, 11, 0.24);
+            overflow-anchor: none;
             transition: border-color var(--vp-dur-fast), background var(--vp-dur-fast), box-shadow var(--vp-dur-fast);
         }
         .comfy-storyboard-panel.is-queued {
@@ -322,6 +324,9 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
         .comfy-storyboard-image-slot.is-layout-refreshing {
             transform: translateZ(0);
         }
+        .comfy-storyboard-image-slot.is-updating-image {
+            display: block !important;
+        }
         .comfy-storyboard-panel.is-queued .comfy-storyboard-image-slot:empty,
         .comfy-storyboard-panel.is-generating .comfy-storyboard-image-slot:empty,
         .comfy-storyboard-panel.is-error .comfy-storyboard-image-slot:empty,
@@ -353,22 +358,86 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
             content: '已取消';
         }
         .comfy-storyboard-image-slot .comfy-image-container {
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
             margin-top: 0;
+            min-height: 158px;
             background: rgba(0, 0, 0, 0.16);
+            contain: layout paint;
+            transform: translateZ(0);
+        }
+        .comfy-storyboard-image-slot .comfy-image-container-updating::after {
+            content: '生成中...';
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--vp-accent-color);
+            font-size: 12px;
+            font-weight: 650;
+            letter-spacing: 0;
+            background: rgba(0, 0, 0, 0.32);
+            pointer-events: none;
+        }
+        .comfy-storyboard-image-slot .comfy-image-container-updating img {
+            opacity: 0.58;
+            filter: saturate(0.82);
         }
         .comfy-storyboard-panel-actions > .comfy-button-group {
             display: inline-flex;
             margin: 0;
+            width: 92px;
+        }
+        .comfy-storyboard-panel-actions .comfy-chat-generate-button {
+            width: 92px;
+            min-width: 92px;
+            justify-content: center;
+            white-space: nowrap;
+        }
+        .comfy-storyboard-panel-actions .comfy-storyboard-action {
+            min-width: 58px;
+            justify-content: center;
+            white-space: nowrap;
         }
         .comfy-storyboard-progress-slot {
-            margin-top: 6px;
+            position: absolute;
+            right: 12px;
+            bottom: 12px;
+            left: 12px;
+            z-index: 4;
+            margin-top: 0;
+            min-height: 46px;
+            padding: 7px 8px 8px;
+            box-sizing: border-box;
+            overflow: hidden;
+            overflow-anchor: none;
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none;
+            border: 1px solid rgba(102, 215, 199, 0.24);
+            border-radius: var(--vp-radius-md);
+            background: rgba(5, 8, 10, 0.82);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
         }
-        .comfy-storyboard-progress-slot:empty { display: none; }
+        .comfy-storyboard-progress-slot:empty {
+            display: block;
+        }
+        .comfy-storyboard-progress-slot.has-progress {
+            visibility: visible;
+            opacity: 1;
+            pointer-events: auto;
+        }
         .comfy-storyboard-progress-slot .comfy-progress-container {
             margin-top: 0;
+        }
+        .comfy-storyboard-progress-slot .comfy-progress-text {
+            min-height: 15px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .comfy-storyboard-progress-slot .comfy-api-telemetry {
             display: none;

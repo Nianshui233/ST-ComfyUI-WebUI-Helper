@@ -39,6 +39,21 @@ function buildStoryboardPanelHtml(panel, messageId, buildGenerateButtonGroup) {
     </section>`;
 }
 
+function getStoryboardRenderHash(storyboard) {
+    const payload = {
+        title: storyboard?.title || '',
+        continuity: storyboard?.continuity || {},
+        panels: (storyboard?.panels || []).map(panel => ({
+            id: panel.id || '',
+            index: panel.index || '',
+            beat: panel.beat || '',
+            continuity_note: panel.continuity_note || '',
+            prompt: panel.prompt || '',
+        })),
+    };
+    return simpleHash(JSON.stringify(payload));
+}
+
 export function getStoryboardPromptFromPanel(panelNode) {
     return panelNode?.querySelector('.comfy-storyboard-prompt-textarea')?.value?.trim() || '';
 }
@@ -90,13 +105,19 @@ export function renderStoryboardBlock({
         return;
     }
 
+    const renderHash = getStoryboardRenderHash(storyboard);
+    const block = panel.querySelector('.comfy-storyboard-block');
+    if (block?.dataset.storyboardHash === renderHash) {
+        return;
+    }
+
     const continuity = [
         storyboard.continuity?.characters,
         storyboard.continuity?.scene,
         storyboard.continuity?.style,
     ].filter(Boolean).join(' / ');
 
-    const html = `<div class="comfy-storyboard-block">
+    const html = `<div class="comfy-storyboard-block" data-storyboard-hash="${escapeHTML(renderHash)}">
         <div class="comfy-storyboard-topline">
             <div class="comfy-storyboard-title">
                 <b>${escapeHTML(storyboard.title || '连环画分镜')}</b>
@@ -115,7 +136,6 @@ export function renderStoryboardBlock({
         </div>
     </div>`;
 
-    const block = panel.querySelector('.comfy-storyboard-block');
     if (block) block.outerHTML = html;
     else panel.insertAdjacentHTML('beforeend', html);
 

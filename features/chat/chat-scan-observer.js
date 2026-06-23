@@ -12,6 +12,20 @@ export function createChatScanObserver({
     let observerDebounceTimer = null;
     let contentStabilityTimer = null;
 
+    function isPluginMutation(mutation) {
+        const target = mutation.target?.nodeType === 1 ? mutation.target : mutation.target?.parentElement;
+        if (target?.closest?.('.comfy-ai-prompt-panel, .comfy-storyboard-block, .comfy-image-container, .comfy-progress-container, .comfy-api-telemetry, .comfy-cancel-button')) {
+            return true;
+        }
+
+        const addedNodes = Array.from(mutation.addedNodes || []);
+        const removedNodes = Array.from(mutation.removedNodes || []);
+        return [...addedNodes, ...removedNodes].some(node => (
+            node.nodeType === 1 &&
+            node.matches?.('.comfy-ai-prompt-panel, .comfy-storyboard-block, .comfy-image-container, .comfy-progress-container, .comfy-api-telemetry, .comfy-cancel-button')
+        ));
+    }
+
     function checkContentStability() {
         clearTimeout(contentStabilityTimer);
 
@@ -44,6 +58,7 @@ export function createChatScanObserver({
 
     function processAddedNodes(mutation) {
         if (mutation.type !== 'childList' || mutation.addedNodes.length === 0) return false;
+        if (isPluginMutation(mutation)) return false;
 
         mutation.addedNodes.forEach(node => {
             if (!manualScan.isEnabled()) return;
@@ -63,6 +78,7 @@ export function createChatScanObserver({
     function processChangedMessage(mutation) {
         if (mutation.type !== 'characterData' && mutation.type !== 'childList') return false;
         if (!manualScan.isEnabled()) return false;
+        if (isPluginMutation(mutation)) return false;
 
         let targetNode = mutation.target;
         while (targetNode && !targetNode.classList?.contains('mes')) {
