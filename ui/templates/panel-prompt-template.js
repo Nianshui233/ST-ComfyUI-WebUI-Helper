@@ -12,7 +12,7 @@ export function getPanelPromptTemplate({ panelId, modes }) {
 					</div>
 					<div class="comfy-settings-grid">
 						<div><label for="comfyui-ai-prompt-context-messages">上下文条数</label><input id="comfyui-ai-prompt-context-messages" type="number" min="1" max="20" step="1" value="6"></div>
-						<div><label for="comfyui-ai-prompt-response-length">响应长度</label><input id="comfyui-ai-prompt-response-length" type="number" min="120" max="4096" step="10" value="350"></div>
+						<div><label for="comfyui-ai-prompt-response-length">响应长度</label><input id="comfyui-ai-prompt-response-length" type="number" min="1" step="10" value="350"></div>
 					</div>
 					<div class="comfy-hint">Danbooru 标签规则会自动使用更高输出预算，避免复杂多角色标签块被截断。</div>
 				</fieldset>
@@ -58,7 +58,7 @@ export function getPanelPromptTemplate({ panelId, modes }) {
 						</div>
 						<div class="comfy-settings-grid">
 							<div><label for="comfyui-ai-prompt-api-temperature">Temperature</label><input id="comfyui-ai-prompt-api-temperature" type="number" min="0" max="2" step="0.05" value="0.4"></div>
-							<div><label for="comfyui-ai-prompt-api-timeout">API 超时(ms)</label><input id="comfyui-ai-prompt-api-timeout" type="number" min="5000" max="300000" step="1000" value="60000"></div>
+							<div><label for="comfyui-ai-prompt-api-timeout">API 超时(ms)</label><input id="comfyui-ai-prompt-api-timeout" type="number" min="1" step="1000" value="60000"></div>
 						</div>
 						<div class="comfy-settings-grid">
 							<div>

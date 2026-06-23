@@ -17,11 +17,11 @@ export function looksLikeDanbooruRule(text) {
 export function getAiPromptMaxTokens(settings, defaults) {
     const base = Math.max(64, Math.ceil(settings.responseLength * 1.4));
     const visibleBudget = looksLikeDanbooruRule(settings.instruction)
-        ? Math.min(8192, Math.max(base, 4096))
-        : Math.min(4096, base);
+        ? Math.max(base, 4096)
+        : base;
     if (settings.thinkingMode === 'enabled') {
         const thinkingReserve = Math.min(32000, Math.max(1024, parseInt(settings.thinkingBudget, 10) || defaults.aiPromptThinkingBudget));
-        return Math.min(32768, Math.max(visibleBudget, visibleBudget + thinkingReserve));
+        return Math.max(visibleBudget, visibleBudget + thinkingReserve);
     }
     return visibleBudget;
 }
