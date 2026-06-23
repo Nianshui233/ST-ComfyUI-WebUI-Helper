@@ -18,83 +18,114 @@ export function getPanelPromptTemplate({ panelId, modes }) {
 				</fieldset>
 				<fieldset>
 					<legend>LLM 来源</legend>
-					<div class="comfy-settings-grid">
-						<div>
-							<label for="comfyui-ai-prompt-provider">提示词分析模型</label>
-							<select id="comfyui-ai-prompt-provider">
-								<option value="sillytavern">SillyTavern 当前 LLM（默认）</option>
-								<option value="openai_compatible">OpenAI 兼容 API</option>
-								<option value="anthropic">Anthropic API</option>
-							</select>
-						</div>
-						<div>
-							<label for="comfyui-ai-prompt-api-model-select">模型选择</label>
-							<div class="comfy-input-group">
-								<select id="comfyui-ai-prompt-api-model-select"><option value="">自动/手动检测后选择模型...</option></select>
-								<button id="comfyui-ai-prompt-detect-models" class="comfy-button" title="检测模型列表"><i class="fa-solid fa-arrows-rotate"></i></button>
+					<div class="ai-provider-block">
+						<div class="ai-provider-block-title"><i class="fa-solid fa-route"></i><span>来源与模型</span></div>
+						<div class="comfy-settings-grid">
+							<div>
+								<label for="comfyui-ai-prompt-provider">提示词分析模型</label>
+								<select id="comfyui-ai-prompt-provider">
+									<option value="sillytavern">SillyTavern 当前 LLM（默认）</option>
+									<option value="openai_compatible">OpenAI 兼容 API</option>
+									<option value="anthropic">Anthropic API</option>
+								</select>
+							</div>
+							<div>
+								<label for="comfyui-ai-prompt-api-model-select">模型选择</label>
+								<div class="comfy-input-group">
+									<select id="comfyui-ai-prompt-api-model-select"><option value="">自动/手动检测后选择模型...</option></select>
+									<button id="comfyui-ai-prompt-detect-models" class="comfy-button" title="检测模型列表"><i class="fa-solid fa-arrows-rotate"></i></button>
+								</div>
 							</div>
 						</div>
 					</div>
 					<div id="comfyui-ai-prompt-api-settings">
-						<div class="comfy-settings-grid">
-							<div><label for="comfyui-ai-prompt-api-url">API Base URL</label><input id="comfyui-ai-prompt-api-url" type="text" placeholder="http://127.0.0.1:1234/v1"></div>
-							<div><label for="comfyui-ai-prompt-api-key">API Key</label><input id="comfyui-ai-prompt-api-key" type="password" autocomplete="off" placeholder="本地服务可留空"></div>
-						</div>
-						<div class="comfy-settings-grid comfy-ai-key-list-grid">
-							<div>
-								<label for="comfyui-ai-prompt-api-key-select">API Key 列表</label>
-								<select id="comfyui-ai-prompt-api-key-select"><option value="">选择已保存的 Key...</option></select>
+						<div class="ai-provider-block">
+							<div class="ai-provider-block-title"><i class="fa-solid fa-bookmark"></i><span>渠道预设</span></div>
+							<div class="comfy-settings-grid comfy-ai-provider-preset-grid">
+								<div>
+									<label for="comfyui-ai-prompt-provider-preset-select">LLM 渠道/厂商预设</label>
+									<select id="comfyui-ai-prompt-provider-preset-select"><option value="">选择已保存的渠道...</option></select>
+								</div>
+								<div class="comfy-inline-actions">
+									<button id="comfyui-ai-prompt-provider-preset-load" class="comfy-button" title="套用选中的来源、URL、模型和思考参数">套用渠道</button>
+									<button id="comfyui-ai-prompt-provider-preset-save" class="comfy-button" title="保存当前来源、URL、模型和思考参数">保存渠道</button>
+									<button id="comfyui-ai-prompt-provider-preset-delete" class="comfy-button error" title="删除选中的渠道预设">删除渠道</button>
+								</div>
 							</div>
-							<div class="comfy-inline-actions">
-								<button id="comfyui-ai-prompt-api-key-load" class="comfy-button" title="把选中的 Key 填入当前 API Key">套用</button>
-								<button id="comfyui-ai-prompt-api-key-save" class="comfy-button" title="把当前 API Key 保存到列表">保存</button>
-								<button id="comfyui-ai-prompt-api-key-delete" class="comfy-button error" title="删除选中的 Key">删除</button>
+							<div class="comfy-hint">渠道预设保存 LLM 来源、Base URL、模型、温度、超时与思考参数；API Key 仍由下面的 Key 列表单独保存，不会把明文 Key 混进渠道配置。</div>
+						</div>
+						<div class="ai-provider-block">
+							<div class="ai-provider-block-title"><i class="fa-solid fa-plug"></i><span>连接与密钥</span></div>
+							<div class="comfy-settings-grid">
+								<div><label for="comfyui-ai-prompt-api-url">API Base URL</label><input id="comfyui-ai-prompt-api-url" type="text" placeholder="http://127.0.0.1:1234/v1"></div>
+								<div><label for="comfyui-ai-prompt-api-key">API Key</label><input id="comfyui-ai-prompt-api-key" type="password" autocomplete="off" placeholder="本地服务可留空"></div>
+							</div>
+							<div class="comfy-settings-grid comfy-ai-key-list-grid">
+								<div>
+									<label for="comfyui-ai-prompt-api-key-select">API Key 列表</label>
+									<select id="comfyui-ai-prompt-api-key-select"><option value="">选择已保存的 Key...</option></select>
+								</div>
+								<div class="comfy-inline-actions">
+									<button id="comfyui-ai-prompt-api-key-load" class="comfy-button" title="把选中的 Key 填入当前 API Key">套用</button>
+									<button id="comfyui-ai-prompt-api-key-save" class="comfy-button" title="把当前 API Key 保存到列表">保存</button>
+									<button id="comfyui-ai-prompt-api-key-delete" class="comfy-button error" title="删除选中的 Key">删除</button>
+								</div>
+							</div>
+							<div class="comfy-hint">API Key 以自定义名称保存到本地列表，列表只显示名称与遮罩尾号；出于安全考虑不会随插件配置导出。</div>
+						</div>
+						<div class="ai-provider-block">
+							<div class="ai-provider-block-title"><i class="fa-solid fa-sliders"></i><span>请求参数</span></div>
+							<div class="comfy-settings-grid">
+								<div><label for="comfyui-ai-prompt-api-model">手动模型名</label><input id="comfyui-ai-prompt-api-model" type="text" placeholder="例如 gpt-4.1-mini / qwen2.5-vl / local-model"></div>
+								<label class="comfy-auto-generate-label"><input id="comfyui-ai-prompt-auto-detect-models" type="checkbox" checked><b>自动检测模型列表</b><span>- URL / Key / 渠道变化后自动拉取 /models</span></label>
+							</div>
+							<div class="comfy-settings-grid">
+								<div><label for="comfyui-ai-prompt-api-temperature">Temperature</label><input id="comfyui-ai-prompt-api-temperature" type="number" min="0" max="2" step="0.05" value="0.4"></div>
+								<div><label for="comfyui-ai-prompt-api-timeout">API 超时(ms)</label><input id="comfyui-ai-prompt-api-timeout" type="number" min="1" step="1000" value="60000"></div>
 							</div>
 						</div>
-						<div class="comfy-hint">API Key 以自定义名称保存到本地列表，列表只显示名称与遮罩尾号；出于安全考虑不会随插件配置导出。</div>
-						<div class="comfy-settings-grid">
-							<div><label for="comfyui-ai-prompt-api-model">手动模型名</label><input id="comfyui-ai-prompt-api-model" type="text" placeholder="例如 gpt-4.1-mini / qwen2.5-vl / local-model"></div>
-							<label class="comfy-auto-generate-label"><input id="comfyui-ai-prompt-auto-detect-models" type="checkbox" checked><b>自动检测模型列表</b><span>- URL / Key / 渠道变化后自动拉取 /models</span></label>
-						</div>
-						<div class="comfy-settings-grid">
-							<div><label for="comfyui-ai-prompt-api-temperature">Temperature</label><input id="comfyui-ai-prompt-api-temperature" type="number" min="0" max="2" step="0.05" value="0.4"></div>
-							<div><label for="comfyui-ai-prompt-api-timeout">API 超时(ms)</label><input id="comfyui-ai-prompt-api-timeout" type="number" min="1" step="1000" value="60000"></div>
-						</div>
-						<div class="comfy-settings-grid">
-							<div>
-								<label for="comfyui-ai-prompt-thinking-mode">思考模式</label>
-								<select id="comfyui-ai-prompt-thinking-mode">
-									<option value="default">关闭/默认</option>
-									<option value="enabled">开启</option>
-									<option value="disabled">强制关闭</option>
-								</select>
+						<div class="ai-provider-block ai-thinking-block">
+							<div class="ai-provider-block-title"><i class="fa-solid fa-brain"></i><span>思考模式</span></div>
+							<div class="comfy-settings-grid ai-thinking-mode-row">
+								<div>
+									<label for="comfyui-ai-prompt-thinking-mode">思考模式</label>
+									<select id="comfyui-ai-prompt-thinking-mode">
+										<option value="default">关闭/默认</option>
+										<option value="enabled">开启</option>
+										<option value="disabled">强制关闭</option>
+									</select>
+								</div>
 							</div>
-							<div>
-								<label for="comfyui-ai-prompt-thinking-strategy">思考参数策略</label>
-								<select id="comfyui-ai-prompt-thinking-strategy">
-									<option value="auto">自动识别渠道</option>
-									<option value="openai">OpenAI</option>
-									<option value="anthropic">Anthropic</option>
-									<option value="deepseek">DeepSeek</option>
-								</select>
+							<div class="ai-thinking-advanced" id="comfyui-ai-prompt-thinking-advanced">
+								<div class="comfy-settings-grid">
+									<div>
+										<label for="comfyui-ai-prompt-thinking-strategy">思考参数策略</label>
+										<select id="comfyui-ai-prompt-thinking-strategy">
+											<option value="auto">自动识别渠道</option>
+											<option value="openai">OpenAI</option>
+											<option value="anthropic">Anthropic</option>
+											<option value="deepseek">DeepSeek</option>
+										</select>
+									</div>
+									<div>
+										<label for="comfyui-ai-prompt-thinking-effort">推理强度</label>
+										<select id="comfyui-ai-prompt-thinking-effort">
+											<option value="minimal">minimal</option>
+											<option value="low">low</option>
+											<option value="medium">medium</option>
+											<option value="high">high</option>
+											<option value="xhigh">xhigh</option>
+											<option value="max">max</option>
+										</select>
+									</div>
+								</div>
+								<div class="comfy-settings-grid">
+									<div><label for="comfyui-ai-prompt-thinking-budget">思考预算 tokens</label><input id="comfyui-ai-prompt-thinking-budget" type="number" min="1024" max="32000" step="512" value="2048"></div>
+								</div>
+								<div class="comfy-hint">开启后会按 OpenAI / Anthropic / DeepSeek 的常见 API 形态注入字段。</div>
 							</div>
 						</div>
-						<div class="comfy-settings-grid">
-							<div>
-								<label for="comfyui-ai-prompt-thinking-effort">推理强度</label>
-								<select id="comfyui-ai-prompt-thinking-effort">
-									<option value="minimal">minimal</option>
-									<option value="low">low</option>
-									<option value="medium">medium</option>
-									<option value="high">high</option>
-									<option value="xhigh">xhigh</option>
-									<option value="max">max</option>
-								</select>
-							</div>
-							<div><label for="comfyui-ai-prompt-thinking-budget">思考预算 tokens</label><input id="comfyui-ai-prompt-thinking-budget" type="number" min="1024" max="32000" step="512" value="2048"></div>
-						</div>
-						<div class="comfy-hint">默认不额外发送思考参数；开启后会按 OpenAI / Anthropic / DeepSeek 的常见 API 形态注入字段。OpenAI 兼容 API 仍走 <code>/chat/completions</code>，Anthropic API 走 <code>/v1/messages</code>。</div>
-						<div class="comfy-hint">OpenAI 兼容模式会请求 <code>/chat/completions</code>；模型列表检测会请求 <code>/models</code>。Base URL 可填 <code>http://127.0.0.1:1234/v1</code>、<code>https://api.openai.com/v1</code> 或 <code>https://api.deepseek.com</code>；Anthropic 可填 <code>https://api.anthropic.com</code> 或 <code>https://api.anthropic.com/v1</code>。</div>
+						<div class="comfy-hint ai-provider-endpoint-hint">OpenAI 兼容模式会请求 <code>/chat/completions</code>，模型列表检测会请求 <code>/models</code>；Anthropic API 走 <code>/v1/messages</code>。</div>
 						<button id="comfyui-ai-prompt-test-api" class="comfy-button" style="width:100%; margin-top: 10px;">测试 AI 接口</button>
 					</div>
 				</fieldset>

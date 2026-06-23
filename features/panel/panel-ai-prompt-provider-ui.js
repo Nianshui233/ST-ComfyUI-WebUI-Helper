@@ -1,9 +1,14 @@
+import { createAiPromptProviderPresetManager } from '../ai-prompt/ai-prompt-provider-presets.js';
+
 export function createAiPromptProviderUiController({
     panel,
     buttons,
     inputs,
+    getValue,
+    setValue,
     saveSettings,
     detectAiPromptModels,
+    showToast,
     logger = console,
 }) {
     let aiPromptModelDetectTimer = null;
@@ -24,10 +29,12 @@ export function createAiPromptProviderUiController({
 
     function updateAiPromptProviderUI() {
         const useExternal = ['openai_compatible', 'anthropic'].includes(inputs.aiPromptProvider?.value);
+        const thinkingEnabled = inputs.aiPromptThinkingMode?.value === 'enabled';
         [
             inputs.aiPromptApiUrl,
             inputs.aiPromptApiKey,
             inputs.aiPromptApiKeySelect,
+            inputs.aiPromptProviderPresetSelect,
             inputs.aiPromptApiModel,
             inputs.aiPromptApiModelSelect,
             inputs.aiPromptAutoDetectModels,
@@ -42,10 +49,21 @@ export function createAiPromptProviderUiController({
             buttons.aiPromptApiKeyLoad,
             buttons.aiPromptApiKeySave,
             buttons.aiPromptApiKeyDelete,
+            buttons.aiPromptProviderPresetLoad,
+            buttons.aiPromptProviderPresetSave,
+            buttons.aiPromptProviderPresetDelete,
         ].forEach(input => {
             if (input) input.disabled = !useExternal;
         });
+        [
+            inputs.aiPromptThinkingStrategy,
+            inputs.aiPromptThinkingEffort,
+            inputs.aiPromptThinkingBudget,
+        ].forEach(input => {
+            if (input) input.disabled = !useExternal || !thinkingEnabled;
+        });
         document.getElementById('comfyui-ai-prompt-api-settings')?.classList.toggle('is-disabled', !useExternal);
+        document.getElementById('comfyui-ai-prompt-thinking-advanced')?.toggleAttribute('hidden', !thinkingEnabled);
     }
 
     function initAiPromptProviderUi() {
@@ -56,6 +74,7 @@ export function createAiPromptProviderUiController({
             updateAiPromptProviderUI();
             scheduleAiPromptModelDetection();
         });
+        inputs.aiPromptThinkingMode?.addEventListener('change', updateAiPromptProviderUI);
         inputs.aiPromptApiModelSelect?.addEventListener('change', () => {
             if (!inputs.aiPromptApiModelSelect.value || !inputs.aiPromptApiModel) return;
             inputs.aiPromptApiModel.value = inputs.aiPromptApiModelSelect.value;
@@ -64,6 +83,16 @@ export function createAiPromptProviderUiController({
         [inputs.aiPromptApiUrl, inputs.aiPromptApiKey, inputs.aiPromptAutoDetectModels].forEach(input => {
             input?.addEventListener(input?.type === 'checkbox' ? 'change' : 'input', scheduleAiPromptModelDetection);
         });
+
+        createAiPromptProviderPresetManager({
+            inputs,
+            getValue,
+            setValue,
+            saveSettings,
+            updateProviderUI: updateAiPromptProviderUI,
+            scheduleModelDetection: scheduleAiPromptModelDetection,
+            showToast,
+        }).loadPresets();
 
         updateAiPromptProviderUI();
     }

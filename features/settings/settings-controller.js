@@ -126,6 +126,7 @@ export function createSettingsController({
             if (!input?.id) continue;
             if (input === inputs.aiPromptApiModelSelect) continue;
             if (input === inputs.aiPromptApiKeySelect) continue;
+            if (input === inputs.aiPromptProviderPresetSelect) continue;
             if (input === inputs.apiImageApiKeySelect) continue;
 
             let value;

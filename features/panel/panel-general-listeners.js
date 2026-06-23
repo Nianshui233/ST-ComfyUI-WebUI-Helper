@@ -8,6 +8,8 @@ import { moveModeSections } from './panel-mode-sections.js';
 import { initPanelTabListeners } from './panel-tabs.js';
 
 export function createPanelGeneralListeners({
+    getValue,
+    setValue,
     saveSettings,
     detectAiPromptModels,
     switchMode,
@@ -38,8 +40,11 @@ export function createPanelGeneralListeners({
             panel,
             buttons,
             inputs,
+            getValue,
+            setValue,
             saveSettings,
             detectAiPromptModels,
+            showToast,
             logger,
         }).initAiPromptProviderUi();
         initAutosaveListeners({ buttons, inputs, saveSettings });

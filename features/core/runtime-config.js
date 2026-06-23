@@ -12,6 +12,7 @@ export const STORAGE_KEY_MODE = 'generation_mode';
 export const STORAGE_KEY_HELPER_ENABLED = 'comfyui_helper_enabled';
 export const STORAGE_KEY_PROMPT_PRESETS = 'comfyui_prompt_presets';
 export const STORAGE_KEY_AI_PROMPT_RULE_PRESETS = 'comfyui_ai_prompt_rule_presets';
+export const STORAGE_KEY_AI_PROMPT_PROVIDER_PRESETS = 'comfyui_ai_prompt_provider_presets';
 export const STORAGE_KEY_AI_PROMPT_API_KEYS = 'comfyui_ai_prompt_api_keys';
 export const STORAGE_KEY_API_IMAGE_API_KEYS = 'comfyui_api_image_api_keys';
 export const STORAGE_KEY_COMFYUI_LORA_PRESETS = 'comfyui_lora_presets';
@@ -137,5 +138,6 @@ export const EXPORTABLE_STORAGE_KEYS = createExportableStorageKeys({
     workflows: STORAGE_KEY_WORKFLOWS,
     promptPresets: STORAGE_KEY_PROMPT_PRESETS,
     aiPromptRulePresets: STORAGE_KEY_AI_PROMPT_RULE_PRESETS,
+    aiPromptProviderPresets: STORAGE_KEY_AI_PROMPT_PROVIDER_PRESETS,
     comfyLoraPresets: STORAGE_KEY_COMFYUI_LORA_PRESETS,
 });

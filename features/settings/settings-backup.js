@@ -7,6 +7,7 @@ export function createExportableStorageKeys(storageKeys) {
         storageKeys.workflows,
         storageKeys.promptPresets,
         storageKeys.aiPromptRulePresets,
+        storageKeys.aiPromptProviderPresets,
         storageKeys.comfyLoraPresets,
         'comfyui_url',
         'webui_url',

@@ -127,6 +127,8 @@ export function createPanelListenerStack({
         initTabListeners,
         moveModeSections,
     } = createPanelGeneralListeners({
+        getValue,
+        setValue,
         saveSettings,
         detectAiPromptModels,
         switchMode,

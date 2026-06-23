@@ -200,6 +200,35 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
         #${panelId} .comfy-hint { margin-top: var(--vp-space-2); color: var(--vp-text-muted); font-size: 12px; line-height: 1.45; }
         #${panelId} .comfy-hint code { color: var(--vp-accent-color); font-family: var(--vp-font); }
         #${panelId} #comfyui-ai-prompt-api-settings.is-disabled { opacity: 0.55; }
+        #${panelId} .ai-provider-block {
+            margin: 0 0 12px;
+            padding: 12px;
+            border: 1px solid var(--vp-border-color);
+            border-radius: var(--vp-radius-md);
+            background: rgba(255, 255, 255, 0.025);
+        }
+        #${panelId} .ai-provider-block:last-child { margin-bottom: 0; }
+        #${panelId} .ai-provider-block-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            color: var(--vp-text-color);
+            font-size: 12px;
+            font-weight: 750;
+            line-height: 1.2;
+        }
+        #${panelId} .ai-provider-block-title i {
+            width: 15px;
+            color: var(--vp-accent-color);
+            text-align: center;
+            opacity: 0.9;
+        }
+        #${panelId} .ai-provider-block .comfy-settings-grid:last-child,
+        #${panelId} .ai-provider-block .comfy-hint:last-child { margin-bottom: 0; }
+        #${panelId} .ai-thinking-mode-row { grid-template-columns: minmax(220px, 420px); }
+        #${panelId} .ai-thinking-advanced[hidden] { display: none !important; }
+        #${panelId} .ai-provider-endpoint-hint { margin: 6px 0 10px; }
         #${panelId} .comfy-ai-prompt-instruction { min-height: 220px; }
 
         /* ---------- Toolbar menu entry ---------- */
@@ -308,6 +337,7 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
             #${panelId} .tab-buttons { margin-top: 0; padding: 8px 10px; }
             #${panelId} .tab-button { min-height: 36px; padding: 8px 10px; font-size: 12px; }
             #${panelId} .comfy-settings-grid,
+            #${panelId} .comfy-ai-provider-preset-grid,
             #${panelId} .comfy-ai-key-list-grid,
             #${panelId} .comfy-ai-rule-preset-grid { grid-template-columns: 1fr !important; }
             #${panelId} .comfy-inline-actions,
