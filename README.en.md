@@ -77,7 +77,9 @@ from the SillyTavern Extensions panel.
 
 After enabling the extension, open it from the bottom-left menu in the SillyTavern chat screen, not from the top extension icon:
 
-1. Click the menu button near the lower-left corner of the chat input area, the spot highlighted by the blue arrow in the screenshot.
+![Plugin entry screenshot](docs/images/plugin-entry.png)
+
+1. Click the menu button near the lower-left corner of the chat input area, the spot highlighted by the green arrow in the screenshot.
 2. Find `图片生成面板` in the popup menu.
 3. Click `图片生成面板` to open this extension's settings panel.
 4. If the entry is missing, refresh SillyTavern and confirm that the extension is enabled.
