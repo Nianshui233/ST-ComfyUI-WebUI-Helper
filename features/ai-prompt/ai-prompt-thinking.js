@@ -1,7 +1,4 @@
-import {
-    getAiPromptMaxTokens,
-    looksLikeDanbooruRule,
-} from './ai-prompt-rules.js';
+import { getAiPromptMaxTokens } from './ai-prompt-rules.js';
 
 export function resolveAiPromptThinkingStrategy(settings, defaults) {
     const configured = String(settings.thinkingStrategy || defaults.aiPromptThinkingStrategy).trim();
@@ -116,15 +113,9 @@ export function getAiPromptRequestTemperature(settings, defaults) {
 }
 
 export function buildAiPromptSystemPrompt(instruction) {
-    const isDanbooruRule = looksLikeDanbooruRule(instruction);
-    return isDanbooruRule
-        ? 'You format final Danbooru tags exactly according to the user rules. Return only the final tag block. Do not explain, refuse, summarize, or convert it to prose.'
-        : 'You are an image-prompt formatter. Return only the final prompt text. Do not explain, refuse, summarize, or add markdown.';
+    return 'You are an image-prompt formatter. Follow the user-provided formatting rules exactly. Return only the final prompt content. Do not explain, refuse, summarize, or add markdown unless the user rules explicitly require it.';
 }
 
 export function buildAiPromptRetryPrompt(instruction, quietPrompt) {
-    const isDanbooruRule = looksLikeDanbooruRule(instruction);
-    return isDanbooruRule
-        ? `${quietPrompt}\n\n上一次返回没有可用文本。请严格只返回最终 Danbooru 标签块；如果规则要求 [IMG_GEN]，只返回完整 [IMG_GEN] 块。不要解释，不要改写成自然语言。`
-        : `${quietPrompt}\n\n上一次返回没有可用文本。请严格只返回最终绘图提示词；如果规则要求 [IMG_GEN]，只返回完整 [IMG_GEN] 块，不要解释。`;
+    return `${quietPrompt}\n\n上一次返回没有可用文本。请严格遵守上方绘图分析规则，只返回最终绘图提示词内容；如果规则要求 [IMG_GEN]，只返回完整 [IMG_GEN] 块。不要解释、不要输出推理、不要总结剧情。`;
 }

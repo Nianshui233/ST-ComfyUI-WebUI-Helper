@@ -14,7 +14,7 @@ export function getPanelPromptTemplate({ panelId, modes }) {
 						<div><label for="comfyui-ai-prompt-context-messages">上下文条数</label><input id="comfyui-ai-prompt-context-messages" type="number" min="1" max="20" step="1" value="6"></div>
 						<div><label for="comfyui-ai-prompt-response-length">响应长度</label><input id="comfyui-ai-prompt-response-length" type="number" min="1" step="10" value="350"></div>
 					</div>
-					<div class="comfy-hint">Danbooru 标签规则会自动使用更高输出预算，避免复杂多角色标签块被截断。</div>
+					<div class="comfy-hint">响应长度由当前数值决定；Danbooru 标签块、FLUX 自然语言等格式完全按下方绘图分析规则执行。</div>
 				</fieldset>
 				<fieldset>
 					<legend>LLM 来源</legend>

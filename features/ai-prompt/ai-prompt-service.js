@@ -1,5 +1,3 @@
-import { looksLikeDanbooruRule } from './ai-prompt-rules.js';
-
 export {
     generateAiPromptWithAnthropic,
 } from './ai-prompt-anthropic.js';
@@ -16,10 +14,7 @@ export function buildAiPromptQuietPrompt({ instruction, messages, targetIndex })
         .map(item => `#${item.index} ${item.role} (${item.name}): ${item.text}`)
         .join('\n\n');
     const target = messages.find(item => item.index === targetIndex);
-    const isDanbooruRule = looksLikeDanbooruRule(instruction);
-    const finalInstruction = isDanbooruRule
-        ? '请严格按上方规则输出最终 Danbooru 标签块。不要输出解释、推理、剧情说明或自然语言绘图描述。'
-        : '请输出最终英文绘图提示词。';
+    const finalInstruction = '请严格遵守上方绘图分析规则，只返回最终绘图提示词内容；如果规则要求 [IMG_GEN]，只返回完整 [IMG_GEN] 块。不要解释、不要输出推理、不要总结剧情。';
 
     return `${instruction}
 
