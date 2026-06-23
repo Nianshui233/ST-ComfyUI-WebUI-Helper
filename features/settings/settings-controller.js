@@ -86,6 +86,13 @@ const SETTINGS_TO_LOAD = {
     storyboardEnabled: ['comfyui_storyboard_enabled', DEFAULT_SETTINGS.storyboardEnabled],
 };
 
+function hasUsableSelectValue(select) {
+    if (!select || !select.value) return false;
+    const option = select.selectedOptions?.[0];
+    if (!option || option.disabled) return false;
+    return !/(加载|失败|未找到|loading|failed)/i.test(option.textContent || '');
+}
+
 export function createSettingsController({
     getStoredValues,
     setStoredValues,
@@ -145,9 +152,9 @@ export function createSettingsController({
             settingsToSave[storageKey] = value;
         }
 
-        if (inputs.modelSelect) settingsToSave.comfyui_model = inputs.modelSelect.value;
-        if (inputs.unetSelect) settingsToSave.comfyui_unet_model = inputs.unetSelect.value;
-        if (inputs.webuiModelSelect) settingsToSave.webui_model = inputs.webuiModelSelect.value;
+        if (hasUsableSelectValue(inputs.modelSelect)) settingsToSave.comfyui_model = inputs.modelSelect.value;
+        if (hasUsableSelectValue(inputs.unetSelect)) settingsToSave.comfyui_unet_model = inputs.unetSelect.value;
+        if (hasUsableSelectValue(inputs.webuiModelSelect)) settingsToSave.webui_model = inputs.webuiModelSelect.value;
 
         await setStoredValues(Object.entries(settingsToSave));
     }

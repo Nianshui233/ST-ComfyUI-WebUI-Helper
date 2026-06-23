@@ -1,4 +1,7 @@
-import { STORAGE_KEY_AI_PROMPT_PROVIDER_PRESETS } from '../core/runtime-config.js';
+import {
+    STORAGE_KEY_AI_PROMPT_LAST_PROVIDER_PRESET,
+    STORAGE_KEY_AI_PROMPT_PROVIDER_PRESETS,
+} from '../core/runtime-config.js';
 
 function getProviderLabel(provider) {
     return {
@@ -73,7 +76,9 @@ export function createAiPromptProviderPresetManager({
             option.textContent = summarizePreset(name, preset);
             select.appendChild(option);
         });
-        select.value = names.includes(preferredValue) ? preferredValue : '';
+        const remembered = preferredValue || await getValue(STORAGE_KEY_AI_PROMPT_LAST_PROVIDER_PRESET, '');
+        select.value = names.includes(remembered) ? remembered : '';
+        await setValue(STORAGE_KEY_AI_PROMPT_LAST_PROVIDER_PRESET, select.value);
     }
 
     async function savePreset() {
@@ -86,6 +91,7 @@ export function createAiPromptProviderPresetManager({
         presets[name.trim()] = preset;
         await setValue(STORAGE_KEY_AI_PROMPT_PROVIDER_PRESETS, presets);
         await loadPresets(name.trim());
+        await setValue(STORAGE_KEY_AI_PROMPT_LAST_PROVIDER_PRESET, name.trim());
         showToast('success', `LLM 渠道 "${name.trim()}" 已保存`);
     }
 
@@ -95,6 +101,7 @@ export function createAiPromptProviderPresetManager({
             return;
         }
 
+        await setValue(STORAGE_KEY_AI_PROMPT_LAST_PROVIDER_PRESET, select.value);
         const presets = await getValue(STORAGE_KEY_AI_PROMPT_PROVIDER_PRESETS, {});
         const preset = presets[select.value];
         if (!preset) {
@@ -137,9 +144,14 @@ export function createAiPromptProviderPresetManager({
         const presets = await getValue(STORAGE_KEY_AI_PROMPT_PROVIDER_PRESETS, {});
         delete presets[name];
         await setValue(STORAGE_KEY_AI_PROMPT_PROVIDER_PRESETS, presets);
+        await setValue(STORAGE_KEY_AI_PROMPT_LAST_PROVIDER_PRESET, '');
         await loadPresets();
         showToast('success', `LLM 渠道 "${name}" 已删除`);
     }
+
+    select.addEventListener('change', () => {
+        setValue(STORAGE_KEY_AI_PROMPT_LAST_PROVIDER_PRESET, select.value || '');
+    });
 
     loadBtn.addEventListener('click', loadSelected);
     saveBtn.addEventListener('click', savePreset);

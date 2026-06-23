@@ -1,4 +1,8 @@
 import { MODES } from '../core/runtime-config.js';
+import {
+    getFallbackPanelTab,
+    isPanelTabVisibleForMode,
+} from './panel-state-restore.js';
 
 export function updatePanelModeUI({
     currentMode,
@@ -7,8 +11,8 @@ export function updatePanelModeUI({
 }) {
     moveModeSections(currentMode);
     const activeTab = document.querySelector('.tab-button.active');
-    if (activeTab && activeTab.style.display === 'none') {
-        const fallbackTab = currentMode === MODES.API ? 'api-image' : 'general';
+    if (!activeTab || activeTab.style.display === 'none' || !isPanelTabVisibleForMode(activeTab.dataset.tab, currentMode)) {
+        const fallbackTab = getFallbackPanelTab(currentMode);
         document.querySelector(`[data-tab="${fallbackTab}"]`)?.click();
     } else if (activeTab && ['generation', 'img2img', 'prompts'].includes(activeTab.dataset.tab)) {
         moveAdvancedSectionsToTab(activeTab.dataset.tab, currentMode);

@@ -41,6 +41,7 @@ export function createExtensionLifecycle({
             await activateHelper();
             const panel = document.getElementById(panelId);
             if (panel) panel.style.display = 'flex';
+            panelController.restorePanelState?.();
             const options = document.getElementById('options');
             if (options) options.style.display = 'none';
         });

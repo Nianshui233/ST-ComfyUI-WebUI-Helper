@@ -16,6 +16,7 @@ export function createModelResourceService({
     const comfyUIResources = createComfyUIResourceService({
         getCachedObjectInfo,
         getValue,
+        setValue,
         showToast,
         logger,
     });

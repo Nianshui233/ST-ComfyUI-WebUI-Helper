@@ -8,6 +8,7 @@ import {
 export function createComfyUIResourceService({
     getCachedObjectInfo,
     getValue,
+    setValue,
     showToast,
     logger = console,
 }) {
@@ -21,6 +22,7 @@ export function createComfyUIResourceService({
                 return models;
             },
             getValue,
+            setValue,
             showToast,
             logger,
             savedValueKey: 'comfyui_model',
@@ -45,6 +47,7 @@ export function createComfyUIResourceService({
                 return null;
             },
             getValue,
+            setValue,
             showToast,
             logger,
             savedValueKey: 'comfyui_unet_model',
@@ -78,6 +81,8 @@ export function createComfyUIResourceService({
             const savedScheduler = await getValue('comfyui_scheduler', DEFAULT_SETTINGS.scheduler);
             const samplerUpdated = setDynamicSelectOptions(samplerSelect, samplerList, savedSampler);
             const schedulerUpdated = setDynamicSelectOptions(schedulerSelect, schedulerList, savedScheduler);
+            if (samplerUpdated) await setValue('comfyui_sampler', samplerSelect.value);
+            if (schedulerUpdated) await setValue('comfyui_scheduler', schedulerSelect.value);
 
             if (!silent) {
                 if (samplerUpdated || schedulerUpdated) {

@@ -34,13 +34,13 @@ export function createWebUIResourceService({
             });
 
             const savedModel = await getValue('webui_model');
-            if (savedModel) {
+            const modelValues = Array.from(selectElement.options).map(option => option.value);
+            if (savedModel && modelValues.includes(savedModel)) {
                 selectElement.value = savedModel;
             } else if (models.length > 0) {
                 selectElement.value = models[0].model_name || models[0].title;
-                await setValue('webui_model', selectElement.value);
             }
-            selectElement.dispatchEvent(new Event('change'));
+            await setValue('webui_model', selectElement.value);
 
             if (!silent) showToast('success', 'WebUI 模型列表加载成功');
         } catch (error) {
@@ -118,6 +118,7 @@ export function createWebUIResourceService({
             const samplerList = parseJsonResponse(response, [], 'WebUI 采样器列表');
             const savedSampler = await getValue('webui_sampler', DEFAULT_SETTINGS.webuiSampler);
             if (setDynamicSelectOptions(samplerSelect, Array.isArray(samplerList) ? samplerList : [], savedSampler)) {
+                await setValue('webui_sampler', samplerSelect.value);
                 updatedAny = true;
             }
         } catch (error) {
@@ -135,6 +136,7 @@ export function createWebUIResourceService({
                 : (Array.isArray(parsed?.schedulers) ? parsed.schedulers : []);
             const savedScheduler = await getValue('webui_scheduler', DEFAULT_SETTINGS.webuiScheduler);
             if (setDynamicSelectOptions(schedulerSelect, schedulerList, savedScheduler)) {
+                await setValue('webui_scheduler', schedulerSelect.value);
                 updatedAny = true;
             }
         } catch (error) {
@@ -159,6 +161,7 @@ export function createWebUIResourceService({
 
             const savedUpscaler = await getValue('webui_hires_upscaler', DEFAULT_SETTINGS.hiresUpscaler);
             if (setDynamicSelectOptions(upscalerSelect, upscalerList, savedUpscaler)) {
+                await setValue('webui_hires_upscaler', upscalerSelect.value);
                 updatedAny = true;
             }
         } catch (error) {

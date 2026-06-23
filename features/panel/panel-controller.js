@@ -14,6 +14,7 @@ import {
     updatePanelSeedDisplay,
 } from './panel-seed.js';
 import { validatePanelSettings } from './panel-settings-validation.js';
+import { createPanelStateRestoreController } from './panel-state-restore.js';
 
 export function createPanelController({
     getValue,
@@ -85,6 +86,7 @@ export function createPanelController({
 }) {
     let currentMode = MODES.COMFYUI;
     let apiImagePanelController = null;
+    let panelStateRestoreController = null;
 
     function moveAdvancedSectionsToTab(tabId) {
         moveAdvancedSectionsToPanelTab(tabId, currentMode);
@@ -124,6 +126,7 @@ export function createPanelController({
         importComfyUILoraSelection,
         copyLastSubmittedComfyUIWorkflow,
         exportLastSubmittedComfyUIWorkflow,
+        saveActiveTab: tabId => panelStateRestoreController?.saveActiveTab?.(tabId),
         getValue,
         setValue,
         imageCacheDB,
@@ -181,8 +184,10 @@ export function createPanelController({
         await setValue(STORAGE_KEY_MODE, mode);
         updateModeUI();
         onModeChanged?.(mode);
-        showToast('success', `已切换到 ${getModeLabel(mode)} 模式`);
         connectionMonitor.setStatus('disconnected', '未连接');
+        panelStateRestoreController?.resetResourceRestore?.();
+        panelStateRestoreController?.restoreResources?.();
+        showToast('success', `已切换到 ${getModeLabel(mode)} 模式`);
     }
 
     function updateModeUI() {
@@ -228,6 +233,24 @@ export function createPanelController({
 
         await loadCurrentMode();
         await loadSettings(inputs);
+
+        panelStateRestoreController = createPanelStateRestoreController({
+            getValue,
+            setValue,
+            getCurrentMode,
+            inputs,
+            connectionMonitor,
+            fetchAndPopulateModels,
+            fetchAndPopulateUNetModels,
+            fetchAndPopulateWebUIModels,
+            fetchAndPopulateWebUILoras,
+            fetchAndPopulateWebUIEmbeddings,
+            fetchAndPopulateComfyUISamplingOptions,
+            fetchAndPopulateWebUISamplingOptions,
+            fetchAndPopulateComfyUILoras,
+            logger,
+        });
+
         helperActivation?.setToggleVisual?.(helperActivation.isEnabled?.() ?? true);
         apiImagePanelController?.applyProviderDefaults?.();
         panel.updateAiPromptProviderUI?.();
@@ -236,6 +259,7 @@ export function createPanelController({
         await syncComfyUILoraSelectionStorage();
         moveAdvancedSectionsToTab('generation');
         updateComfyUISelectedLorasDisplay();
+        await panelStateRestoreController.restoreOnOpen();
     }
 
     function getSeedForGeneration() {
@@ -253,6 +277,7 @@ export function createPanelController({
         loadCurrentMode,
         switchMode,
         updateModeUI,
+        restorePanelState: () => panelStateRestoreController?.restoreOnOpen?.(),
         updateSeedDisplay,
         validateSettings,
     };

@@ -1,4 +1,5 @@
 import { MODES } from '../core/runtime-config.js';
+import { isPanelTabVisibleForMode } from './panel-state-restore.js';
 
 export function moveModeSections(currentMode) {
     document.querySelectorAll('.mode-switch-option').forEach(btn => {
@@ -93,7 +94,7 @@ export function moveModeSections(currentMode) {
             button.style.order = String(index + 1);
         });
         const activeTab = document.querySelector('.tab-button.active');
-        if (!activeTab || !apiVisibleTabs.includes(activeTab.dataset.tab)) {
+        if (!activeTab || !isPanelTabVisibleForMode(activeTab.dataset.tab, currentMode)) {
             document.querySelector('[data-tab="api-image"]')?.click();
         }
     } else {

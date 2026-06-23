@@ -2,14 +2,28 @@ export function initAutosaveListeners({
     buttons,
     inputs,
     saveSettings,
+    setValue,
 }) {
     let saveDebounceTimer = null;
+    const dynamicModelSelects = new Map([
+        [inputs.modelSelect, 'comfyui_model'],
+        [inputs.unetSelect, 'comfyui_unet_model'],
+        [inputs.webuiModelSelect, 'webui_model'],
+    ]);
+
+    dynamicModelSelects.forEach((storageKey, input) => {
+        input?.addEventListener('change', () => {
+            setValue?.(storageKey, input.value || '');
+        });
+    });
+
     Object.values(inputs).forEach(input => {
         if (!input?.addEventListener) return;
         if (input === inputs.aiPromptApiModelSelect) return;
         if (input === inputs.aiPromptApiKeySelect) return;
         if (input === inputs.aiPromptProviderPresetSelect) return;
         if (input === inputs.apiImageApiKeySelect) return;
+        if (dynamicModelSelects.has(input)) return;
         const eventType = (input.tagName === 'SELECT' || input.type === 'checkbox') ? 'change' : 'input';
         input.addEventListener(eventType, () => {
             if (input === inputs.url) buttons.test.className = 'comfy-button';

@@ -56,6 +56,7 @@ export async function fetchAndPopulateSelect({
     selectElement,
     fetchItems,
     getValue,
+    setValue,
     showToast,
     logger,
     savedValueKey,
@@ -83,8 +84,18 @@ export async function fetchAndPopulateSelect({
             selectElement.appendChild(option);
         });
 
+        const values = Array.from(selectElement.options).map(option => option.value);
         const saved = await getValue(savedValueKey);
-        if (saved) selectElement.value = saved;
+        if (saved && values.includes(saved)) {
+            selectElement.value = saved;
+        } else if (defaultFirst) {
+            selectElement.value = '';
+        } else if (values.length > 0) {
+            selectElement.value = values[0];
+        }
+        if (setValue && savedValueKey && selectElement.value !== saved) {
+            await setValue(savedValueKey, selectElement.value);
+        }
         if (!silent) showToast('success', successMsg);
     } catch (error) {
         selectElement.innerHTML = '<option>加载失败</option>';

@@ -1,4 +1,7 @@
-import { STORAGE_KEY_API_IMAGE_API_KEYS } from '../core/runtime-config.js';
+import {
+    STORAGE_KEY_API_IMAGE_API_KEYS,
+    STORAGE_KEY_API_IMAGE_LAST_API_KEY,
+} from '../core/runtime-config.js';
 
 function maskApiKeyForDisplay(key) {
     const text = String(key || '').trim();
@@ -34,7 +37,9 @@ export function createApiImageKeyManager({
             option.textContent = `${name} (${maskApiKeyForDisplay(item.key)})`;
             select.appendChild(option);
         });
-        select.value = names.includes(preferredValue) ? preferredValue : '';
+        const remembered = preferredValue || await getValue(STORAGE_KEY_API_IMAGE_LAST_API_KEY, '');
+        select.value = names.includes(remembered) ? remembered : '';
+        await setValue(STORAGE_KEY_API_IMAGE_LAST_API_KEY, select.value);
     }
 
     async function loadSelected() {
@@ -43,6 +48,7 @@ export function createApiImageKeyManager({
             return;
         }
 
+        await setValue(STORAGE_KEY_API_IMAGE_LAST_API_KEY, select.value);
         const keys = await getValue(STORAGE_KEY_API_IMAGE_API_KEYS, {});
         const item = keys[select.value];
         if (!item) {
@@ -98,6 +104,7 @@ export function createApiImageKeyManager({
         };
         await setValue(STORAGE_KEY_API_IMAGE_API_KEYS, keys);
         await loadPresets(cleanName);
+        await setValue(STORAGE_KEY_API_IMAGE_LAST_API_KEY, cleanName);
         showToast('success', `API 生图 Key "${cleanName}" 已保存`);
     }
 
@@ -113,9 +120,14 @@ export function createApiImageKeyManager({
         const keys = await getValue(STORAGE_KEY_API_IMAGE_API_KEYS, {});
         delete keys[name];
         await setValue(STORAGE_KEY_API_IMAGE_API_KEYS, keys);
+        await setValue(STORAGE_KEY_API_IMAGE_LAST_API_KEY, '');
         await loadPresets();
         showToast('success', `API 生图 Key "${name}" 已删除`);
     }
+
+    select.addEventListener('change', () => {
+        setValue(STORAGE_KEY_API_IMAGE_LAST_API_KEY, select.value || '');
+    });
 
     loadBtn.addEventListener('click', loadSelected);
     saveBtn.addEventListener('click', saveCurrentKey);

@@ -1,4 +1,7 @@
-import { STORAGE_KEY_AI_PROMPT_API_KEYS } from '../core/runtime-config.js';
+import {
+    STORAGE_KEY_AI_PROMPT_API_KEYS,
+    STORAGE_KEY_AI_PROMPT_LAST_API_KEY,
+} from '../core/runtime-config.js';
 
 function maskApiKeyForDisplay(key) {
     const text = String(key || '').trim();
@@ -40,7 +43,9 @@ export function createAiPromptApiKeyManager({
             option.textContent = `${name} (${maskApiKeyForDisplay(item.key)})`;
             select.appendChild(option);
         });
-        select.value = names.includes(preferredValue) ? preferredValue : '';
+        const remembered = preferredValue || await getValue(STORAGE_KEY_AI_PROMPT_LAST_API_KEY, '');
+        select.value = names.includes(remembered) ? remembered : '';
+        await setValue(STORAGE_KEY_AI_PROMPT_LAST_API_KEY, select.value);
     }
 
     async function saveKey(name) {
@@ -57,6 +62,7 @@ export function createAiPromptApiKeyManager({
         };
         await setValue(STORAGE_KEY_AI_PROMPT_API_KEYS, keys);
         await loadPresets(name);
+        await setValue(STORAGE_KEY_AI_PROMPT_LAST_API_KEY, name);
         showToast('success', `API Key "${name}" 已保存`);
     }
 
@@ -66,6 +72,7 @@ export function createAiPromptApiKeyManager({
             return;
         }
 
+        await setValue(STORAGE_KEY_AI_PROMPT_LAST_API_KEY, select.value);
         const keys = await getValue(STORAGE_KEY_AI_PROMPT_API_KEYS, {});
         const item = keys[select.value];
         if (!item) {
@@ -96,6 +103,7 @@ export function createAiPromptApiKeyManager({
         const keys = await getValue(STORAGE_KEY_AI_PROMPT_API_KEYS, {});
         delete keys[name];
         await setValue(STORAGE_KEY_AI_PROMPT_API_KEYS, keys);
+        await setValue(STORAGE_KEY_AI_PROMPT_LAST_API_KEY, '');
         await loadPresets();
         showToast('success', `API Key "${name}" 已删除`);
     }
@@ -116,6 +124,10 @@ export function createAiPromptApiKeyManager({
             nameInput.select();
         }, 100);
     }
+
+    select.addEventListener('change', () => {
+        setValue(STORAGE_KEY_AI_PROMPT_LAST_API_KEY, select.value || '');
+    });
 
     loadBtn.addEventListener('click', loadSelected);
     saveBtn.addEventListener('click', showSaveModal);

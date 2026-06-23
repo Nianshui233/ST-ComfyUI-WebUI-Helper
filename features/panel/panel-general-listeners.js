@@ -11,6 +11,7 @@ export function createPanelGeneralListeners({
     getValue,
     setValue,
     saveSettings,
+    saveActiveTab,
     detectAiPromptModels,
     switchMode,
     moveAdvancedSectionsToTab,
@@ -48,7 +49,7 @@ export function createPanelGeneralListeners({
             showToast,
             logger,
         }).initAiPromptProviderUi();
-        initAutosaveListeners({ buttons, inputs, saveSettings });
+        initAutosaveListeners({ buttons, inputs, saveSettings, setValue });
         initSizePresetListeners({ panel, showToast });
         initSeedListeners();
         img2imgController.initListeners();
@@ -59,6 +60,7 @@ export function createPanelGeneralListeners({
 
     function initTabListeners() {
         initPanelTabListeners({
+            saveActiveTab,
             moveAdvancedSectionsToTab,
             updateSelectedEmbeddingsDisplay,
             updateComfyUISelectedLorasDisplay,

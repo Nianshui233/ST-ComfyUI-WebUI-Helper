@@ -1,6 +1,7 @@
 import { PANEL_ID } from '../core/runtime-config.js';
 
 export function initPanelTabListeners({
+    saveActiveTab,
     moveAdvancedSectionsToTab,
     updateSelectedEmbeddingsDisplay,
     updateComfyUISelectedLorasDisplay,
@@ -17,6 +18,8 @@ export function initPanelTabListeners({
             const tabId = button.getAttribute('data-tab');
             const targetTab = document.getElementById(`tab-${tabId}`);
             if (!targetTab) return;
+
+            saveActiveTab?.(tabId);
 
             if (['generation', 'img2img', 'prompts'].includes(tabId)) {
                 moveAdvancedSectionsToTab(tabId);
