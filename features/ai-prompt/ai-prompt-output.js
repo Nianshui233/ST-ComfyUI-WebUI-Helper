@@ -12,6 +12,19 @@ export function extractAnthropicText(payload) {
         .join('\n');
 }
 
+function extractTextFromContentParts(parts, { includeTypes = ['text'] } = {}) {
+    if (!Array.isArray(parts)) return '';
+    return parts
+        .map(part => {
+            if (typeof part === 'string') return includeTypes.includes('text') ? part : '';
+            const type = part?.type || '';
+            if (includeTypes.length && type && !includeTypes.includes(type)) return '';
+            return part?.text || part?.thinking || part?.content || part?.value || part?.summary || '';
+        })
+        .filter(Boolean)
+        .join('\n');
+}
+
 export function extractOpenAICompatibleText(payload) {
     const choice = payload?.choices?.[0];
     const content = choice?.message?.content;
@@ -35,6 +48,49 @@ export function extractOpenAICompatibleText(payload) {
         .map(part => part?.text || part?.content || part?.value || '')
         .filter(Boolean)
         .join('\n');
+}
+
+export function extractAiPromptReasoning(payload) {
+    const choice = payload?.choices?.[0];
+    const message = choice?.message || {};
+    const direct = [
+        message.reasoning,
+        message.reasoning_content,
+        message.thinking,
+        message.thinking_content,
+        message.reasoning_text,
+        payload?.reasoning,
+        payload?.reasoning_content,
+        payload?.thinking,
+        payload?.thinking_content,
+    ].filter(value => typeof value === 'string' && value.trim());
+    if (direct.length) return direct.join('\n').trim();
+
+    const messageReasoning = extractTextFromContentParts(message.content, {
+        includeTypes: ['reasoning', 'thinking', 'reasoning_text', 'thinking_text'],
+    });
+    if (messageReasoning) return messageReasoning.trim();
+
+    const anthropicThinking = extractTextFromContentParts(payload?.content, {
+        includeTypes: ['thinking', 'redacted_thinking'],
+    });
+    if (anthropicThinking) return anthropicThinking.trim();
+
+    const responseOutput = Array.isArray(payload?.output) ? payload.output : [];
+    const responseReasoning = responseOutput
+        .map(item => {
+            if (item?.type === 'reasoning') {
+                if (typeof item.summary === 'string') return item.summary;
+                if (Array.isArray(item.summary)) return item.summary.map(part => part?.text || part?.content || '').filter(Boolean).join('\n');
+            }
+            return extractTextFromContentParts(item?.content, {
+                includeTypes: ['reasoning', 'thinking', 'summary_text'],
+            });
+        })
+        .filter(Boolean)
+        .join('\n');
+
+    return responseReasoning.trim();
 }
 
 export function summarizeAIEmptyResponse(payload) {

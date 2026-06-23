@@ -4,6 +4,8 @@ import { createMessageStack } from './app-message-stack.js';
 import { createResourceStack } from './app-resource-stack.js';
 import { createExtensionLifecycle } from './extension-lifecycle.js';
 import { InputValidators } from '../core/input-validators.js';
+import { installGlobalErrorLogger } from '../logs/global-error-logger.js';
+import { createLogPanelController } from '../logs/log-panel-controller.js';
 import { createPanelController } from '../panel/panel-controller.js';
 import {
     BUTTON_ID,
@@ -43,6 +45,8 @@ export function createComfyWebuiHelperApp({
         getStoredValues,
         imageCacheDB,
         img2imgController,
+        logger,
+        logStore,
         makeRequest,
         makeRequestWithRetry,
         manualScan,
@@ -84,7 +88,7 @@ export function createComfyWebuiHelperApp({
         getPanelController: () => panelController,
         getAiPromptController: () => aiPromptController,
         showToast,
-        logger: console,
+        logger,
     });
     const {
         comfyUILoraController,
@@ -114,7 +118,7 @@ export function createComfyWebuiHelperApp({
         generateEmbeddingPromptString,
         progressTracker,
         showToast,
-        logger: console,
+        logger,
     });
 
     const messageStack = createMessageStack({
@@ -132,9 +136,16 @@ export function createComfyWebuiHelperApp({
         streamingState,
         manualScan,
         showToast,
-        logger: console,
+        logger,
     });
     aiPromptController = messageStack.aiPromptController;
+
+    const logPanelController = createLogPanelController({
+        blobUrlTracker: BlobURLTracker,
+        logStore,
+        showToast,
+    });
+    installGlobalErrorLogger({ logger });
 
     panelController = createPanelController({
         getValue,
@@ -154,6 +165,7 @@ export function createComfyWebuiHelperApp({
         saveSettings: settingsController.saveSettings,
         initSettingsBackupListeners: settingsController.initSettingsBackupListeners,
         initPresetManagers: presetController.initPresetManagers,
+        initLogPanel: logPanelController.init,
         detectAiPromptModels: messageStack.detectAiPromptModels,
         populateAiPromptModelSelect: messageStack.populateAiPromptModelSelect,
         testAiPromptOpenAICompatibleApi: messageStack.testAiPromptOpenAICompatibleApi,
@@ -201,7 +213,7 @@ export function createComfyWebuiHelperApp({
             currentMode = mode;
         },
         showToast,
-        logger: console,
+        logger,
     });
 
     addStyle(getPanelStyles({ panelId: PANEL_ID, buttonId: BUTTON_ID }));
@@ -223,7 +235,7 @@ export function createComfyWebuiHelperApp({
         generateWithWebUI: generationStack.generateWithWebUI,
         logRuntimeConfig,
         showToast,
-        logger: console,
+        logger,
     });
 
     return {

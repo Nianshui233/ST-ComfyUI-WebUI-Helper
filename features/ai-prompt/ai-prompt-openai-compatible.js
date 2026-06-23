@@ -6,6 +6,7 @@ import {
 } from './ai-prompt-thinking.js';
 import { getAiPromptMaxTokens } from './ai-prompt-rules.js';
 import {
+    extractAiPromptReasoning,
     extractOpenAICompatibleText,
     summarizeAIEmptyResponse,
 } from './ai-prompt-output.js';
@@ -111,15 +112,16 @@ async function requestAiPromptOpenAICompatible(settings, quietPrompt, { retry = 
     }
 
     const text = extractOpenAICompatibleText(parsed).trim();
-    return { text, parsed };
+    const reasoning = extractAiPromptReasoning(parsed).trim();
+    return { text, reasoning, parsed };
 }
 
 export async function generateAiPromptWithOpenAICompatible(settings, quietPrompt, deps) {
     const first = await requestAiPromptOpenAICompatible(settings, quietPrompt, {}, deps);
-    if (first.text) return first.text;
+    if (first.text) return { text: first.text, reasoning: first.reasoning, parsed: first.parsed, attempts: 1 };
 
     const second = await requestAiPromptOpenAICompatible(settings, quietPrompt, { retry: true }, deps);
-    if (second.text) return second.text;
+    if (second.text) return { text: second.text, reasoning: second.reasoning || first.reasoning, parsed: second.parsed, attempts: 2 };
 
     throw new Error(`AI 绘图 API 没有返回可用文本（${summarizeAIEmptyResponse(second.parsed || first.parsed)}）`);
 }

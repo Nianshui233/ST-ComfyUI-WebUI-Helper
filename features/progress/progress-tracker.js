@@ -17,7 +17,13 @@ import {
     updateProgressUI,
 } from './progress-ui.js';
 
-export function createProgressTracker({ modes, makeRequest, makeCancelledError, blobToDataUrl }) {
+export function createProgressTracker({
+    modes,
+    makeRequest,
+    makeCancelledError,
+    blobToDataUrl,
+    logger = console,
+}) {
     return {
         ws: null,
         pollTimer: null,
@@ -48,7 +54,7 @@ export function createProgressTracker({ modes, makeRequest, makeCancelledError, 
                 const preview = await captureComfyUIPreview(payload, blobToDataUrl);
                 if (preview) this.lastPreviewDataUrl = preview;
             } catch (error) {
-                console.warn('[AI Gen] 捕获 ComfyUI 预览图失败:', error);
+                logger.warn('[AI Gen] 捕获 ComfyUI 预览图失败:', error);
             }
         },
 
@@ -154,7 +160,7 @@ export function createProgressTracker({ modes, makeRequest, makeCancelledError, 
                 try {
                     await makeRequest({ method: 'POST', url: endpoint, timeout: 5000 });
                 } catch (e) {
-                    console.warn('[AI Gen] 中断请求失败:', e);
+                    logger.warn('[AI Gen] 中断请求失败:', e);
                 }
             }
             this._rejectExecution(makeCancelledError());

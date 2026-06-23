@@ -29,7 +29,7 @@ export function createAiPromptModelManager({
                 'Return exactly this short image prompt in English: medium shot eye-level portrait in soft natural light.',
                 getAiPromptServiceDeps(),
             );
-        showToast('success', `AI 接口可用: ${sanitizeAiPromptOutput(output).slice(0, 80) || 'OK'}`);
+        showToast('success', `AI 接口可用: ${sanitizeAiPromptOutput(output?.text || output).slice(0, 80) || 'OK'}`);
     }
 
     function populateAiPromptModelSelect(models, selectedModel = '') {

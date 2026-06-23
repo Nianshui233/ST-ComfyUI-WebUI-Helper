@@ -30,6 +30,7 @@ export function getPanelShellTemplate({ panelId, modes }) {
 				<button class="tab-button webui-settings" data-tab="loras" style="display: none;"><i class="fa-solid fa-layer-group"></i><span>WebUI LoRA</span></button>
 				<button class="tab-button comfyui-settings" data-tab="comfy-loras"><i class="fa-solid fa-layer-group"></i><span>ComfyUI LoRA</span></button>
 				<button class="tab-button" data-tab="cache"><i class="fa-solid fa-box-archive"></i><span>图片缓存</span></button>
+				<button class="tab-button" data-tab="logs"><i class="fa-solid fa-clipboard-list"></i><span>运行日志</span></button>
 			</div>
 `;
 }

@@ -15,6 +15,7 @@ import {
 } from '../../lib/core/utils.js';
 import { createHttpClient } from '../../lib/http/http-client.js';
 import { createToastNotifier } from '../../ui/core/toast.js';
+import { createLogStore } from '../logs/log-service.js';
 
 export function createAppRuntime({
     getValue,
@@ -24,16 +25,18 @@ export function createAppRuntime({
     logger = console,
 }) {
     const imageCacheDB = new ImageCacheDB();
+    const logStore = createLogStore({ logger });
+    const appLogger = logStore.createLogger(logger);
     const { getStoredValues, setStoredValues } = createStorageAccessors(getValue, setValue);
     const { makeRequest, makeRequestWithRetry } = createHttpClient({
         request,
-        logger,
+        logger: appLogger,
     });
 
-    const showToast = createToastNotifier({ logger });
+    const showToast = createToastNotifier({ logger: appLogger, logStore });
     const getCachedObjectInfo = createObjectInfoCache({ makeRequest, safeJsonParse });
     const manualScan = createManualScanController();
-    const messageRuntime = createMessageRuntime({ logger });
+    const messageRuntime = createMessageRuntime({ logger: appLogger });
 
     const connectionMonitor = createConnectionMonitor({
         getCurrentMode,
@@ -47,6 +50,7 @@ export function createAppRuntime({
         makeRequest,
         makeCancelledError,
         blobToDataUrl,
+        logger: appLogger,
     });
 
     const embeddingController = createEmbeddingController({ safeJsonParse });
@@ -59,6 +63,8 @@ export function createAppRuntime({
         getStoredValues,
         imageCacheDB,
         img2imgController,
+        logger: appLogger,
+        logStore,
         makeRequest,
         makeRequestWithRetry,
         manualScan,

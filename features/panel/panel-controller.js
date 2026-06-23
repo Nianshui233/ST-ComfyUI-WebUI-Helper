@@ -33,6 +33,7 @@ export function createPanelController({
     saveSettings,
     initSettingsBackupListeners,
     initPresetManagers,
+    initLogPanel,
     detectAiPromptModels,
     populateAiPromptModelSelect,
     testAiPromptOpenAICompatibleApi,
@@ -208,6 +209,7 @@ export function createPanelController({
         initPresetManagers(inputs);
         initCacheListeners(buttons);
         initSettingsBackupListeners(buttons, inputs);
+        initLogPanel?.();
 
         await loadCurrentMode();
         await loadSettings(inputs);

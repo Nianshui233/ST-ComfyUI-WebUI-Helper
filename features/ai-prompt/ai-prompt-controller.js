@@ -65,6 +65,7 @@ export function createAiPromptController({
         getChatMessageByNode,
         isAiPromptEligibleMessage,
         saveAiPromptToMessage,
+        logger,
     });
 
     const {

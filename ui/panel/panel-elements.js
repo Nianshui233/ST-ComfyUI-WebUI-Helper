@@ -120,5 +120,8 @@ export function getPanelButtons(panel) {
         aiPromptApiKeyLoad: document.getElementById('comfyui-ai-prompt-api-key-load'),
         aiPromptApiKeySave: document.getElementById('comfyui-ai-prompt-api-key-save'),
         aiPromptApiKeyDelete: document.getElementById('comfyui-ai-prompt-api-key-delete'),
+        logCopy: document.getElementById('comfyui-log-copy'),
+        logExport: document.getElementById('comfyui-log-export'),
+        logClear: document.getElementById('comfyui-log-clear'),
     };
 }

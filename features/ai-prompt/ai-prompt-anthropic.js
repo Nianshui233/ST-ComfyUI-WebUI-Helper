@@ -5,6 +5,7 @@ import {
 } from './ai-prompt-thinking.js';
 import { getAiPromptMaxTokens } from './ai-prompt-rules.js';
 import {
+    extractAiPromptReasoning,
     extractAnthropicText,
     summarizeAIEmptyResponse,
 } from './ai-prompt-output.js';
@@ -59,15 +60,16 @@ async function requestAiPromptAnthropic(settings, quietPrompt, { retry = false }
     }
 
     const text = extractAnthropicText(parsed).trim();
-    return { text, parsed };
+    const reasoning = extractAiPromptReasoning(parsed).trim();
+    return { text, reasoning, parsed };
 }
 
 export async function generateAiPromptWithAnthropic(settings, quietPrompt, deps) {
     const first = await requestAiPromptAnthropic(settings, quietPrompt, {}, deps);
-    if (first.text) return first.text;
+    if (first.text) return { text: first.text, reasoning: first.reasoning, parsed: first.parsed, attempts: 1 };
 
     const second = await requestAiPromptAnthropic(settings, quietPrompt, { retry: true }, deps);
-    if (second.text) return second.text;
+    if (second.text) return { text: second.text, reasoning: second.reasoning || first.reasoning, parsed: second.parsed, attempts: 2 };
 
     throw new Error(`Anthropic API 没有返回可用文本（${summarizeAIEmptyResponse(second.parsed || first.parsed)}）`);
 }

@@ -1,13 +1,17 @@
-export function createToastNotifier({ logger = console } = {}) {
+export function createToastNotifier({ logger = console, logStore = null } = {}) {
     let activeToastCount = 0;
 
     return function showToast(type, message) {
+        logStore?.add?.(type, [message], 'toast');
+
         if (typeof toastr !== 'undefined') {
             toastr[type](message);
             return;
         }
 
-        logger.log(`[AI Gen Toast]: ${type.toUpperCase()} - ${message}`);
+        if (!logStore) {
+            logger.log(`[AI Gen Toast]: ${type.toUpperCase()} - ${message}`);
+        }
         const toastId = `toast-${Date.now()}`;
         const toastColors = {
             success: 'var(--vp-success-color, #73d48f)',
