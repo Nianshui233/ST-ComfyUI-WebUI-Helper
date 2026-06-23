@@ -46,7 +46,7 @@ export function createAiPromptActionHandler({
 
             if (action === 'clear') {
                 await clearAiPromptFromMessage(messageNode);
-                await renderAiPromptControlsForMessage(messageNode, { allowAuto: false });
+                await renderAiPromptControlsForMessage(messageNode, { allowAuto: false, force: true });
                 showToast('success', '绘图提示词已清除');
             }
         } catch (error) {
@@ -62,7 +62,7 @@ export function createAiPromptActionHandler({
         const isQuick = action === 'quick';
         setAiPromptPanelBusy(panel, isQuick ? '分析提示词中...' : (action === 'rewrite' ? '重写提示词中...' : '分析提示词中...'));
         await generateAiPromptForMessage(messageNode);
-        await renderAiPromptControlsForMessage(messageNode, { allowAuto: false });
+        await renderAiPromptControlsForMessage(messageNode, { allowAuto: false, force: true });
         const freshPanel = messageNode.querySelector('.comfy-ai-prompt-panel');
         setAiPromptPanelBusy(freshPanel, '提示词已准备', false);
         if (isQuick) {
@@ -80,7 +80,7 @@ export function createAiPromptActionHandler({
             return;
         }
         await saveAiPromptToMessage(messageNode, prompt, prompt);
-        await renderAiPromptControlsForMessage(messageNode, { allowAuto: false });
+        await renderAiPromptControlsForMessage(messageNode, { allowAuto: false, force: true });
         showToast('success', '绘图提示词已保存');
     }
 

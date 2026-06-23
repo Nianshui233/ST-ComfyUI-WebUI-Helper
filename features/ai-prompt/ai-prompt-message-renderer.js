@@ -18,7 +18,7 @@ export function createAiPromptMessageRenderer({
     showToast,
     logger = console,
 }) {
-    async function renderAiPromptControlsForMessage(messageNode, { allowAuto = false } = {}) {
+    async function renderAiPromptControlsForMessage(messageNode, { allowAuto = false, force = false } = {}) {
         const mesText = messageNode?.querySelector('.mes_text');
         if (!mesText) return;
 
@@ -40,10 +40,11 @@ export function createAiPromptMessageRenderer({
         panel.dataset.messageIndex = String(index);
         panel.dataset.readyText = prompt ? '提示词已准备' : '等待分析';
 
-        const activeTextarea = panel.querySelector?.('.comfy-ai-prompt-editor:not([hidden]) .comfy-ai-prompt-textarea');
+        const activeTextarea = panel.querySelector?.('.comfy-ai-prompt-drawer:not([hidden]) .comfy-ai-prompt-textarea, .comfy-ai-prompt-editor:not([hidden]) .comfy-ai-prompt-textarea');
         const isEditingAiPrompt = activeTextarea && document.activeElement === activeTextarea;
         const promptHash = prompt ? simpleHash(prompt) : '';
         if (
+            !force &&
             existing &&
             prompt &&
             activeTextarea &&
@@ -51,7 +52,7 @@ export function createAiPromptMessageRenderer({
         ) {
             return;
         }
-        if (existing && prompt && panel.dataset.promptHash === promptHash) {
+        if (!force && existing && prompt && panel.dataset.promptHash === promptHash) {
             await setupGenerateButtonGroups(panel, { allowAutoGenerate: false });
             return;
         }
