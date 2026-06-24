@@ -1,6 +1,7 @@
 export function getPanelInputs() {
     return {
         helperEnabled: document.getElementById('comfyui-helper-toggle'),
+        uiTheme: document.getElementById('comfyui-ui-theme'),
         url: document.getElementById('comfyui-url'),
         webuiUrl: document.getElementById('webui-url'),
         apiImageProvider: document.getElementById('comfyui-api-image-provider'),

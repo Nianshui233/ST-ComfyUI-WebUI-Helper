@@ -16,6 +16,7 @@ export const STORAGE_KEY_AI_PROMPT_PROVIDER_PRESETS = 'comfyui_ai_prompt_provide
 export const STORAGE_KEY_AI_PROMPT_API_KEYS = 'comfyui_ai_prompt_api_keys';
 export const STORAGE_KEY_API_IMAGE_API_KEYS = 'comfyui_api_image_api_keys';
 export const STORAGE_KEY_PANEL_ACTIVE_TAB = 'comfyui_panel_active_tab';
+export const STORAGE_KEY_UI_THEME = 'comfyui_ui_theme';
 export const STORAGE_KEY_AI_PROMPT_LAST_API_KEY = 'comfyui_ai_prompt_last_api_key';
 export const STORAGE_KEY_AI_PROMPT_LAST_PROVIDER_PRESET = 'comfyui_ai_prompt_last_provider_preset';
 export const STORAGE_KEY_API_IMAGE_LAST_API_KEY = 'comfyui_api_image_last_api_key';
@@ -51,6 +52,7 @@ export const DEFAULT_AI_PROMPT_INSTRUCTION = `你是 SillyTavern RP 场景的绘
 
 export const DEFAULT_SETTINGS = {
     helperEnabled: true,
+    uiTheme: 'nocturne',
     mode: MODES.COMFYUI,
     url: 'http://127.0.0.1:8188',
     webuiUrl: 'http://127.0.0.1:7860',
@@ -140,6 +142,7 @@ export const DEFAULT_SETTINGS = {
 export const EXPORTABLE_STORAGE_KEYS = createExportableStorageKeys({
     mode: STORAGE_KEY_MODE,
     helperEnabled: STORAGE_KEY_HELPER_ENABLED,
+    uiTheme: STORAGE_KEY_UI_THEME,
     workflows: STORAGE_KEY_WORKFLOWS,
     promptPresets: STORAGE_KEY_PROMPT_PRESETS,
     aiPromptRulePresets: STORAGE_KEY_AI_PROMPT_RULE_PRESETS,

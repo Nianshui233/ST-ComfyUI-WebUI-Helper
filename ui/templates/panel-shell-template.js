@@ -16,6 +16,23 @@ export function getPanelShellTemplate({ panelId, modes }) {
 					<small>聊天区绘图控件开启</small>
 				</span>
 			</button>
+			<div class="theme-switcher" id="comfyui-theme-switcher">
+				<input id="comfyui-ui-theme" type="hidden" value="nocturne">
+				<button type="button" id="comfyui-theme-toggle" class="theme-toggle-button" aria-haspopup="true" aria-expanded="false" title="切换界面主题">
+					<i class="fa-solid fa-palette"></i>
+					<span id="comfyui-theme-current">夜间</span>
+				</button>
+				<div id="comfyui-theme-menu" class="theme-menu" hidden>
+					<button type="button" data-theme="nocturne"><span style="--theme-dot:#66d7c7"></span><b>夜间</b><small>冷调暗色</small></button>
+					<button type="button" data-theme="daybreak"><span style="--theme-dot:#3978d9"></span><b>日间</b><small>清爽亮色</small></button>
+					<button type="button" data-theme="glacier"><span style="--theme-dot:#79c8ff"></span><b>冰川</b><small>蓝白玻璃</small></button>
+					<button type="button" data-theme="sakura"><span style="--theme-dot:#e86f9d"></span><b>樱雨</b><small>柔粉暖灰</small></button>
+					<button type="button" data-theme="forest"><span style="--theme-dot:#7bbf72"></span><b>森林</b><small>苔绿木调</small></button>
+					<button type="button" data-theme="amber"><span style="--theme-dot:#f2a341"></span><b>琥珀</b><small>暖金深棕</small></button>
+					<button type="button" data-theme="terminal"><span style="--theme-dot:#7dff9a"></span><b>终端</b><small>高对比黑绿</small></button>
+					<button type="button" data-theme="wine"><span style="--theme-dot:#d97a8a"></span><b>酒红</b><small>暗红灰紫</small></button>
+				</div>
+			</div>
 			<button type="button" class="floating_panel_close" title="关闭面板"><i class="fa-fw fa-solid fa-circle-xmark"></i></button>
 		</div>
 	</div>

@@ -576,6 +576,19 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
             }
             #${panelId} .tab-button { width: auto; min-width: max-content; }
             #${panelId} .tab-content { grid-column: 1; padding: 16px; }
+            #${panelId} .panel-control-bar {
+                align-items: flex-start;
+                flex-wrap: wrap;
+            }
+            #${panelId} .panel-header-actions {
+                flex-wrap: wrap;
+                justify-content: flex-end;
+                max-width: 100%;
+            }
+            #${panelId} .theme-menu {
+                grid-template-columns: repeat(2, minmax(120px, 1fr));
+                width: min(292px, calc(100vw - 32px));
+            }
         }
 
         /* ---------- Responsive: phone ---------- */
@@ -598,6 +611,27 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
                 z-index: 2;
                 padding: 10px 12px;
                 background: var(--vp-bg-color);
+            }
+            #${panelId} .panel-title-group { max-width: calc(100vw - 24px); }
+            #${panelId} .panel-header-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+            #${panelId} .helper-master-toggle {
+                flex: 1 1 178px;
+                min-width: 0;
+            }
+            #${panelId} .theme-switcher { flex: 0 0 auto; }
+            #${panelId} .theme-toggle-button {
+                min-width: 78px;
+                padding: 0 10px;
+            }
+            #${panelId} .theme-menu {
+                right: 0;
+                grid-template-columns: 1fr;
+                width: min(260px, calc(100vw - 24px));
+                max-height: min(60vh, 420px);
+                overflow-y: auto;
             }
             #${panelId} .panel-title-copy span { display: none; }
             #${panelId} .mode-switch-container { padding: 12px; }
@@ -630,6 +664,15 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
         }
 
         @media (max-width: 480px) {
+            #${panelId} .panel-control-bar { gap: 8px; }
+            #${panelId} .helper-toggle-copy small { display: none; }
+            #${panelId} .helper-master-toggle { flex-basis: 132px; }
+            #${panelId} .theme-toggle-button {
+                min-width: 38px;
+                width: 38px;
+                padding: 0;
+            }
+            #${panelId} .theme-toggle-button span { display: none; }
             #${panelId} .tab-button { padding: 6px 9px; font-size: 11.5px; }
             #${panelId} fieldset,
             #${panelId} .workflow-tools,

@@ -34,14 +34,18 @@ export function moveModeSections(currentMode) {
     });
 
     webuiSettings.forEach(el => {
-        el.classList.toggle('active', displayWebui);
+        if (!el.classList.contains('tab-content') && !el.classList.contains('tab-button')) {
+            el.classList.toggle('active', displayWebui);
+        }
         if (!el.classList.contains('tab-content') && !el.classList.contains('tab-button')) {
             el.style.display = displayWebui ? '' : 'none';
         }
     });
 
     apiSettings.forEach(el => {
-        el.classList.toggle('active', displayApi);
+        if (!el.classList.contains('tab-content') && !el.classList.contains('tab-button')) {
+            el.classList.toggle('active', displayApi);
+        }
         if (!el.classList.contains('tab-content') && !el.classList.contains('tab-button')) {
             el.style.display = displayApi ? '' : 'none';
         }

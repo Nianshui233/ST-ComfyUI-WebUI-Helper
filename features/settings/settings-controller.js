@@ -9,6 +9,7 @@ import {
 
 const SETTINGS_TO_LOAD = {
     helperEnabled: ['comfyui_helper_enabled', DEFAULT_SETTINGS.helperEnabled],
+    uiTheme: ['comfyui_ui_theme', DEFAULT_SETTINGS.uiTheme],
     url: ['comfyui_url', DEFAULT_SETTINGS.url],
     webuiUrl: ['webui_url', DEFAULT_SETTINGS.webuiUrl],
     apiImageProvider: ['comfyui_api_image_provider', DEFAULT_SETTINGS.apiImageProvider],

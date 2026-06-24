@@ -15,6 +15,7 @@ import {
 } from './panel-seed.js';
 import { validatePanelSettings } from './panel-settings-validation.js';
 import { createPanelStateRestoreController } from './panel-state-restore.js';
+import { createPanelThemeController } from './panel-theme-controller.js';
 
 export function createPanelController({
     getValue,
@@ -87,6 +88,7 @@ export function createPanelController({
     let currentMode = MODES.COMFYUI;
     let apiImagePanelController = null;
     let panelStateRestoreController = null;
+    let panelThemeController = null;
 
     function moveAdvancedSectionsToTab(tabId) {
         moveAdvancedSectionsToPanelTab(tabId, currentMode);
@@ -233,6 +235,13 @@ export function createPanelController({
 
         await loadCurrentMode();
         await loadSettings(inputs);
+
+        panelThemeController = createPanelThemeController({
+            inputs,
+            setValue,
+            logger,
+        });
+        panelThemeController.init();
 
         panelStateRestoreController = createPanelStateRestoreController({
             getValue,
