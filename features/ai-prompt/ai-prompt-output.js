@@ -104,6 +104,13 @@ export function summarizeAIEmptyResponse(payload) {
     return parts.length ? parts.join('; ') : '返回结构里没有可提取的文本';
 }
 
+function stripMarkdownListPrefix(line) {
+    return line
+        .replace(/^[-*•]\s+/, '')
+        .replace(/^\d+[.)、]\s+/, '')
+        .trim();
+}
+
 export function sanitizeAiPromptOutput(output) {
     let text = decodeHTML(String(output || '')).trim();
     text = text.replace(/^```[\w-]*\s*/i, '').replace(/```\s*$/i, '').trim();
@@ -117,7 +124,7 @@ export function sanitizeAiPromptOutput(output) {
         .split(/\r?\n/)
         .map(line => line.trim())
         .filter(line => line && !/^\[\/?IMG_GEN\]$/i.test(line))
-        .map(line => line.replace(/^[-*•\d.)\s]+/, '').trim())
+        .map(stripMarkdownListPrefix)
         .join('\n')
         .trim();
 
