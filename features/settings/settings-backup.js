@@ -75,6 +75,7 @@ export function createExportableStorageKeys(storageKeys) {
         'comfyui_ai_prompt_auto_generate_image',
         'comfyui_ai_prompt_context_messages',
         'comfyui_ai_prompt_response_length',
+        'comfyui_ai_prompt_generation_profile',
         'comfyui_ai_prompt_instruction',
         'comfyui_ai_prompt_provider',
         'comfyui_ai_prompt_api_url',
@@ -86,6 +87,12 @@ export function createExportableStorageKeys(storageKeys) {
         'comfyui_ai_prompt_thinking_strategy',
         'comfyui_ai_prompt_thinking_effort',
         'comfyui_ai_prompt_thinking_budget',
+        'comfyui_ai_prompt_web_search_enabled',
+        'comfyui_ai_prompt_web_search_provider',
+        'comfyui_ai_prompt_web_search_api_url',
+        'comfyui_ai_prompt_web_search_max_results',
+        'comfyui_ai_prompt_web_search_max_calls',
+        'comfyui_ai_prompt_web_search_timeout',
         'comfyui_storyboard_enabled',
         'comfyui_panel_position',
     ];
@@ -95,6 +102,7 @@ export function buildSettingsExportPayload(values) {
     const settings = { ...values };
     delete settings.comfyui_ai_prompt_api_key;
     delete settings.comfyui_ai_prompt_api_keys;
+    delete settings.comfyui_ai_prompt_web_search_api_key;
     delete settings.comfyui_api_image_api_key;
     delete settings.comfyui_api_image_api_keys;
 

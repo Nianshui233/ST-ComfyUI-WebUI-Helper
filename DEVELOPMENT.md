@@ -29,6 +29,14 @@ npm run check
 
 This only checks JavaScript parse validity. It does not replace browser testing inside SillyTavern.
 
+## Unit Tests
+
+```bash
+npm test
+```
+
+The Node test suite covers provider wire formats and isolated adapters with fake HTTP responses. It does not make paid search/provider requests and does not replace a real SillyTavern browser test.
+
 ## Module Map
 
 ```text

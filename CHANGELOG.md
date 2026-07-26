@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Replaced separate single-image and storyboard prompt paths with one `ImagePromptEngine`, isolated configured rules from untrusted chat content, added natural-language and Illustrious/A1111 generation profiles, and preserved structured HTML context.
+- Raised first-attempt output capacity to at least 4096 tokens, added one full regeneration after explicit truncation, and added one serialization-only repair attempt for complete but invalid storyboard JSON without saving partial output.
+- Added an extension-owned `web_search` tool loop for AI image-prompt and storyboard analysis, with OpenAI-compatible, DeepSeek thinking-mode, and Anthropic Messages protocol support.
+- Added direct Tavily and self-hosted SearXNG search adapters, bounded calls/results, untrusted-content labeling, local search settings, and a search connection test; no other SillyTavern extension or `ToolManager` integration is required.
+- Added zero-dependency protocol tests for provider tool replay, DeepSeek `reasoning_content`, Anthropic `tool_result`, search request normalization, malformed calls, failures, and limits.
+
 ## 5.4.0
 
 - Added cancel/interrupt for in-progress generation (ComfyUI `/interrupt`, WebUI `/sdapi/v1/interrupt`) with a cancel button on the progress bar.

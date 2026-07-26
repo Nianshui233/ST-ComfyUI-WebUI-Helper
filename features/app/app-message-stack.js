@@ -7,6 +7,7 @@ export function createMessageStack({
     getValue,
     makeRequest,
     generateQuietPrompt,
+    generateRaw,
     saveChatConditional,
     getContext,
     imageCacheDB,
@@ -29,6 +30,7 @@ export function createMessageStack({
         getValue,
         makeRequest,
         generateQuietPrompt,
+        generateRaw,
         saveChatConditional,
         getContext,
         imageCacheDB,
@@ -77,5 +79,6 @@ export function createMessageStack({
         onAiPromptActionClick: aiPromptController.onAiPromptActionClick,
         populateAiPromptModelSelect: aiPromptController.populateAiPromptModelSelect,
         testAiPromptOpenAICompatibleApi: aiPromptController.testAiPromptOpenAICompatibleApi,
+        testAiPromptWebSearch: aiPromptController.testAiPromptWebSearch,
     };
 }

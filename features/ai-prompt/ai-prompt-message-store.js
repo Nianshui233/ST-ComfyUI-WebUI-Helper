@@ -10,6 +10,7 @@ export function createAiPromptMessageStore({
     getContext,
     getValue,
     saveChatConditional,
+    htmlToText = stripHtmlToText,
 }) {
     function getMessageIndexFromNode(messageNode) {
         const nativeId = messageNode?.getAttribute('mesid') ?? messageNode?.dataset?.messageId;
@@ -49,7 +50,7 @@ export function createAiPromptMessageStore({
         return typeof prompt === 'string' ? prompt.trim() : '';
     }
 
-    async function saveAiPromptToMessage(messageNode, prompt, rawOutput = '') {
+    async function saveAiPromptToMessage(messageNode, prompt, rawOutput = '', metadata = {}) {
         const { index, message } = getChatMessageByNode(messageNode);
         if (!message) throw new Error('无法定位当前聊天消息');
 
@@ -57,6 +58,9 @@ export function createAiPromptMessageStore({
         extra.ai_prompt = String(prompt || '').trim();
         extra.ai_prompt_raw = String(rawOutput || '').trim();
         extra.ai_prompt_updated_at = new Date().toISOString();
+        if (metadata.generationProfile) {
+            extra.ai_prompt_generation_profile = String(metadata.generationProfile);
+        }
 
         await saveChatConditional();
         return { index, message, prompt: extra.ai_prompt };
@@ -68,6 +72,7 @@ export function createAiPromptMessageStore({
         delete message.extra[AI_PROMPT_EXTRA_KEY].ai_prompt;
         delete message.extra[AI_PROMPT_EXTRA_KEY].ai_prompt_raw;
         delete message.extra[AI_PROMPT_EXTRA_KEY].ai_prompt_updated_at;
+        delete message.extra[AI_PROMPT_EXTRA_KEY].ai_prompt_generation_profile;
         await saveChatConditional();
     }
 
@@ -80,10 +85,16 @@ export function createAiPromptMessageStore({
 
         for (const [start, end] of pairs) {
             const regex = new RegExp(`${escapeRegex(start)}[\\s\\S]*?${escapeRegex(end)}`, 'gi');
-            result = result.replace(regex, ' ');
+            result = result.replace(regex, '\n');
         }
 
-        return result.replace(/\s+/g, ' ').trim();
+        return result
+            .replace(/\r\n?/g, '\n')
+            .split('\n')
+            .map(line => line.replace(/[ \t]+$/g, ''))
+            .join('\n')
+            .replace(/\n[ \t]*\n(?:[ \t]*\n)+/g, '\n\n')
+            .trim();
     }
 
     async function getCleanMessageTextForAiPrompt(message, startTag, endTag) {
@@ -91,7 +102,7 @@ export function createAiPromptMessageStore({
             ? message.swipes[message.swipe_id]
             : '';
         const raw = currentSwipe || message?.mes || '';
-        return stripConfiguredImageTags(stripHtmlToText(raw), startTag, endTag);
+        return stripConfiguredImageTags(htmlToText(raw), startTag, endTag);
     }
 
     async function buildAiPromptContext(targetIndex, contextLimit) {

@@ -17,10 +17,10 @@ function normalizeString(value) {
     return String(value || '').trim();
 }
 
-function normalizePanel(panel, fallbackIndex) {
+function normalizePanel(panel, fallbackIndex, renderPrompt) {
     const index = Number.parseInt(panel?.index, 10) || fallbackIndex;
     const beat = normalizeString(panel?.beat) || `第 ${index} 格`;
-    const prompt = normalizeString(panel?.prompt);
+    const prompt = normalizeString(renderPrompt(normalizeString(panel?.prompt)));
     return {
         id: `panel-${index}-${simpleHash(`${beat}\n${prompt}`).replace(/^comfy-id-/, '')}`,
         index,
@@ -33,7 +33,10 @@ function normalizePanel(panel, fallbackIndex) {
     };
 }
 
-export function parseStoryboardOutput(rawOutput, { maxPanels = 6 } = {}) {
+export function parseStoryboardOutput(rawOutput, {
+    maxPanels = 6,
+    renderPrompt = value => value,
+} = {}) {
     let parsed;
     try {
         parsed = JSON.parse(extractJsonText(rawOutput));
@@ -42,7 +45,7 @@ export function parseStoryboardOutput(rawOutput, { maxPanels = 6 } = {}) {
     }
 
     const panels = Array.isArray(parsed?.panels)
-        ? parsed.panels.slice(0, maxPanels).map((panel, index) => normalizePanel(panel, index + 1))
+        ? parsed.panels.slice(0, maxPanels).map((panel, index) => normalizePanel(panel, index + 1, renderPrompt))
         : [];
     const validPanels = panels.filter(panel => panel.prompt);
     if (!validPanels.length) {

@@ -38,11 +38,11 @@ export const DEFAULT_AI_PROMPT_INSTRUCTION = `你是 SillyTavern RP 场景的绘
 3. 不要使用 masterpiece, best quality, ultra-detailed, 8k, HDR, perfect anatomy 等空泛质量词。
 4. 不写声音、气味、触觉、心理活动、角色动机、世界观解释、镜头运动或时间流逝。
 5. 若画面内必须出现文字，用 text "..." 描述载体、位置、颜色、排版关系和文字角色；除 text 引号内必要原文外，其余仍用英文。
-6. 常规人物/风景控制在 70-180 英文词；复杂信息图或多宫格可到 180-280 英文词。
+6. 根据当前可见事实与场景复杂度充分展开，不设置词数、标签数、服饰数、主体细节数或模块数目标，不因输出已经较长而主动压缩。
 
 输出结构：
 第一行必须包含景别和视角，例如 close-up eye-level / medium shot three-quarter view / wide shot high-angle。
-主体按视觉重要性描述，最多 3 个主体；每个主体单独成句，写清姿态、位置、年龄观感、外貌、表情、发型、服装材质与细节、手部/道具、受光。
+主体按视觉重要性描述；每个可见主体单独成句，写清姿态、位置、年龄观感、外貌、表情、发型、服装材质与细节、手部/道具、受光。
 最后一句必须描述环境，按场所、前景、中景、背景、天气/空气状态、主光源、色温、反射、阴影组织。
 
 风格自适应：
@@ -123,7 +123,8 @@ export const DEFAULT_SETTINGS = {
     aiPromptAuto: false,
     aiPromptAutoGenerateImage: false,
     aiPromptContextMessages: 6,
-    aiPromptResponseLength: 350,
+    aiPromptResponseLength: 4096,
+    aiPromptGenerationProfile: 'auto',
     aiPromptInstruction: DEFAULT_AI_PROMPT_INSTRUCTION,
     aiPromptProvider: 'sillytavern',
     aiPromptApiUrl: '',
@@ -136,6 +137,13 @@ export const DEFAULT_SETTINGS = {
     aiPromptThinkingStrategy: 'auto',
     aiPromptThinkingEffort: 'medium',
     aiPromptThinkingBudget: 2048,
+    aiPromptWebSearchEnabled: false,
+    aiPromptWebSearchProvider: 'tavily',
+    aiPromptWebSearchApiUrl: '',
+    aiPromptWebSearchApiKey: '',
+    aiPromptWebSearchMaxResults: 5,
+    aiPromptWebSearchMaxCalls: 3,
+    aiPromptWebSearchTimeout: 20000,
     storyboardEnabled: false,
 };
 

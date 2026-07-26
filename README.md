@@ -30,6 +30,7 @@
 | LoRA 管理 | 支持 ComfyUI LoRA 搜索、批量选择、权重批量应用、排序、触发词和注入自检。 |
 | 工作流管理 | 支持工作流保存、导入导出、JSON 格式化、压缩、占位符转换和校验。 |
 | AI/LLM 管理 | 默认使用 SillyTavern 当前 LLM，也可接 OpenAI-compatible 或 Anthropic API。 |
+| 绘图分析联网 | 外部分析模型可按需调用插件内置 `web_search`，支持 Tavily 或自建 SearXNG。 |
 | 规则预设 | 可保存 Danbooru 标签规则、FLUX/自然语言规则等多套绘图分析规则。 |
 | API Key 列表 | 支持多个自命名 Key，本地保存，列表只显示名称和遮罩尾号。 |
 | 运行日志 | 集中显示连接、AI 调用、生图、错误和缓存操作，方便排查问题。 |
@@ -119,6 +120,15 @@ AI/LLM管理 -> 来源 -> SillyTavern 当前 LLM
 - 模型选择：支持自动或手动检测 `/models`，不支持模型列表的渠道可以手填。
 - 思考模式：如果接口报错，先关闭思考模式，确认普通请求可用后再开启。
 
+### 让绘图分析模型联网
+
+网络搜索只支持外部 `OpenAI-compatible` 或 `Anthropic` 分析来源。到 `AI/LLM 管理 -> 网络搜索工具` 开启后，选择：
+
+- `Tavily Search API`：填写独立的 Tavily Key，官方端点由插件固定。
+- `SearXNG（自建）`：填写可信实例的 Search URL，实例必须允许 JSON 输出。
+
+点击 `测试搜索` 验证搜索服务配置；该按钮不会验证所选 LLM 的工具调用能力。模型随后会在遇到新角色、新作品或不确定的 Danbooru 标签时按需搜索；搜索工具、结果回填和调用上限都由本插件执行，不依赖其他 SillyTavern 扩展。完整配置、协议与隐私说明见 [AI 绘图分析网络搜索](docs/AI_WEB_SEARCH.md)。
+
 ## 常用工作流
 
 ### 推荐路线：AI 生图
@@ -192,11 +202,15 @@ ComfyUI 工作流建议使用 API-format JSON，并把关键输入替换成占�
 
 ### AI 提示词接口返回太短或 `finish_reason=length`
 
-把 `AI/LLM管理` 里的响应长度调大，或精简绘图分析规则。Danbooru 规则通常比自然语言规则更容易被截断。
+插件会把首轮输出容量至少归一化为 4096 tokens；单图和分镜都先使用该容量，检测到明确截断时再自动翻倍并完整重生成一次。若扩容后仍失败，请查看日志中的 provider 停止原因，并确认所选模型允许的最大输出长度；不要为了绕过截断而压缩绘图规则、tag、服饰或场景细节。
 
 ### 开启思考模式后报错
 
 先关闭思考模式。不同渠道对推理参数支持不一样，普通请求能跑通后，再按渠道选择 OpenAI、Anthropic 或 DeepSeek 风格。
+
+### 网络搜索测试失败
+
+Tavily 请检查独立 Key；SearXNG 请确认 Search URL 可访问且实例开启 `format=json`。外域请求还需要 SillyTavern 核心 CORS Proxy 可用。网络搜索不支持 `SillyTavern 当前 LLM` 来源。
 
 ### 生成时图片块抖动或闪烁
 
@@ -218,6 +232,7 @@ npm run check
 ```text
 features/
   ai-prompt/                AI/LLM 绘图分析、规则预设、API Key、模型检测
+  ai-tools/                 独立网络搜索、工具定义、调用循环与结果回填
   api-image/                API 生图渠道、Key 轮换、接口测试和状态摘要
   app/                      插件组装、运行时、生命周期与功能栈
   cache/                    生成图片缓存保存、列表与预览

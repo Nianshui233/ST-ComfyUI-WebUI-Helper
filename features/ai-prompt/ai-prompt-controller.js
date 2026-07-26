@@ -2,20 +2,22 @@ import { createAiPromptActionHandler } from './ai-prompt-action-handler.js';
 import { createAiPromptMessageStore } from './ai-prompt-message-store.js';
 import { createAiPromptModelManager } from './ai-prompt-models.js';
 import { createAiPromptGenerateButtons } from './ai-prompt-generate-buttons.js';
-import { createAiPromptGenerator } from './ai-prompt-generator.js';
 import { createAiPromptMessageRenderer } from './ai-prompt-message-renderer.js';
+import { createImagePromptEngine } from './image-prompt-engine.js';
+import { createImagePromptProviderAdapter } from './image-prompt-provider-adapter.js';
 import { setAiPromptPanelBusy } from './ai-prompt-panel-renderer.js';
 import { createAiPromptSettingsReader } from './ai-prompt-settings.js';
 import { DEFAULT_SETTINGS } from '../core/runtime-config.js';
 import { createStoryboardActionHandler } from '../storyboard/storyboard-action-handler.js';
-import { createStoryboardService } from '../storyboard/storyboard-service.js';
 import { createStoryboardStore } from '../storyboard/storyboard-store.js';
+import { createWebSearchToolAdapter } from '../ai-tools/web-search-tool-adapter.js';
 
 export function createAiPromptController({
     getStoredValues,
     getValue,
     makeRequest,
     generateQuietPrompt,
+    generateRaw,
     saveChatConditional,
     getContext,
     imageCacheDB,
@@ -31,6 +33,7 @@ export function createAiPromptController({
     logger = console,
 }) {
     const { getAiPromptSettings } = createAiPromptSettingsReader({ getStoredValues });
+    const webSearchTool = createWebSearchToolAdapter({ makeRequest });
     const messageStore = createAiPromptMessageStore({
         getContext,
         getValue,
@@ -53,7 +56,27 @@ export function createAiPromptController({
         return {
             makeRequest,
             defaults: DEFAULT_SETTINGS,
+            webSearchTool,
+            logger,
         };
+    }
+
+    async function testAiPromptWebSearch(query) {
+        const settings = await getAiPromptSettings();
+        if (!['openai_compatible', 'anthropic'].includes(settings.provider)) {
+            throw new Error('插件内网络搜索仅支持 OpenAI 兼容 API 或 Anthropic API');
+        }
+        const startedAt = Date.now();
+        const result = await webSearchTool.search(settings, query);
+        const elapsedMs = Date.now() - startedAt;
+        logger.info('[AI Gen] 独立网络搜索测试完成', {
+            provider: result.provider,
+            queryLength: result.query.length,
+            results: result.results.length,
+            elapsedMs,
+        });
+        showToast('success', `搜索服务可用：${result.provider} 返回 ${result.results.length} 条结果 (${elapsedMs}ms)`);
+        return result;
     }
     const {
         detectAiPromptModels,
@@ -65,28 +88,23 @@ export function createAiPromptController({
         showToast,
     });
 
-    const {
-        generateAiPromptForMessage,
-    } = createAiPromptGenerator({
-        getAiPromptSettings,
-        getAiPromptServiceDeps,
+    const providerAdapter = createImagePromptProviderAdapter({
         generateQuietPrompt,
+        generateRaw,
+        getAiPromptServiceDeps,
+    });
+    const imagePromptEngine = createImagePromptEngine({
+        getAiPromptSettings,
         buildAiPromptContext,
         getChatMessageByNode,
         isAiPromptEligibleMessage,
         saveAiPromptToMessage,
-        logger,
-    });
-    const storyboardService = createStoryboardService({
-        buildAiPromptContext,
-        generateQuietPrompt,
-        getAiPromptServiceDeps,
-        getAiPromptSettings,
-        getChatMessageByNode,
-        isAiPromptEligibleMessage,
         saveStoryboardToMessage: storyboardStore.saveStoryboardToMessage,
+        providerAdapter,
         logger,
     });
+    const generateAiPromptForMessage = imagePromptEngine.generateSingle;
+    const generateStoryboardForMessage = imagePromptEngine.generateStoryboard;
 
     const {
         buildGenerateButtonGroup,
@@ -131,7 +149,7 @@ export function createAiPromptController({
         buildGenerateButtonGroup,
         clearStoryboardFromMessage: storyboardStore.clearStoryboardFromMessage,
         deleteStoryboardPanel: storyboardStore.deleteStoryboardPanel,
-        generateStoryboardForMessage: storyboardService.generateStoryboardForMessage,
+        generateStoryboardForMessage,
         getChatMessageByNode,
         getStableMessageId,
         getStoryboard: storyboardStore.getStoryboard,
@@ -153,5 +171,6 @@ export function createAiPromptController({
         setAiPromptPanelBusy,
         setupGenerateButtonGroups,
         testAiPromptOpenAICompatibleApi,
+        testAiPromptWebSearch,
     };
 }

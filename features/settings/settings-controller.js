@@ -6,6 +6,7 @@ import {
     buildSettingsExportPayload,
     extractImportableSettings,
 } from './settings-backup.js';
+import { normalizeAiPromptOutputCapacity } from '../ai-prompt/ai-prompt-rules.js';
 
 const SETTINGS_TO_LOAD = {
     helperEnabled: ['comfyui_helper_enabled', DEFAULT_SETTINGS.helperEnabled],
@@ -72,6 +73,7 @@ const SETTINGS_TO_LOAD = {
     aiPromptAutoGenerateImage: ['comfyui_ai_prompt_auto_generate_image', DEFAULT_SETTINGS.aiPromptAutoGenerateImage],
     aiPromptContextMessages: ['comfyui_ai_prompt_context_messages', DEFAULT_SETTINGS.aiPromptContextMessages],
     aiPromptResponseLength: ['comfyui_ai_prompt_response_length', DEFAULT_SETTINGS.aiPromptResponseLength],
+    aiPromptGenerationProfile: ['comfyui_ai_prompt_generation_profile', DEFAULT_SETTINGS.aiPromptGenerationProfile],
     aiPromptInstruction: ['comfyui_ai_prompt_instruction', DEFAULT_SETTINGS.aiPromptInstruction],
     aiPromptProvider: ['comfyui_ai_prompt_provider', DEFAULT_SETTINGS.aiPromptProvider],
     aiPromptApiUrl: ['comfyui_ai_prompt_api_url', DEFAULT_SETTINGS.aiPromptApiUrl],
@@ -84,6 +86,13 @@ const SETTINGS_TO_LOAD = {
     aiPromptThinkingStrategy: ['comfyui_ai_prompt_thinking_strategy', DEFAULT_SETTINGS.aiPromptThinkingStrategy],
     aiPromptThinkingEffort: ['comfyui_ai_prompt_thinking_effort', DEFAULT_SETTINGS.aiPromptThinkingEffort],
     aiPromptThinkingBudget: ['comfyui_ai_prompt_thinking_budget', DEFAULT_SETTINGS.aiPromptThinkingBudget],
+    aiPromptWebSearchEnabled: ['comfyui_ai_prompt_web_search_enabled', DEFAULT_SETTINGS.aiPromptWebSearchEnabled],
+    aiPromptWebSearchProvider: ['comfyui_ai_prompt_web_search_provider', DEFAULT_SETTINGS.aiPromptWebSearchProvider],
+    aiPromptWebSearchApiUrl: ['comfyui_ai_prompt_web_search_api_url', DEFAULT_SETTINGS.aiPromptWebSearchApiUrl],
+    aiPromptWebSearchApiKey: ['comfyui_ai_prompt_web_search_api_key', DEFAULT_SETTINGS.aiPromptWebSearchApiKey],
+    aiPromptWebSearchMaxResults: ['comfyui_ai_prompt_web_search_max_results', DEFAULT_SETTINGS.aiPromptWebSearchMaxResults],
+    aiPromptWebSearchMaxCalls: ['comfyui_ai_prompt_web_search_max_calls', DEFAULT_SETTINGS.aiPromptWebSearchMaxCalls],
+    aiPromptWebSearchTimeout: ['comfyui_ai_prompt_web_search_timeout', DEFAULT_SETTINGS.aiPromptWebSearchTimeout],
     storyboardEnabled: ['comfyui_storyboard_enabled', DEFAULT_SETTINGS.storyboardEnabled],
 };
 
@@ -111,8 +120,13 @@ export function createSettingsController({
             settingsEntries.map(([, [storageKey, defaultValue]]) => [storageKey, defaultValue])
         );
 
+        const migrations = [];
         for (const [inputKey, [storageKey]] of settingsEntries) {
-            const value = storedValues[storageKey];
+            const storedValue = storedValues[storageKey];
+            const value = inputKey === 'aiPromptResponseLength'
+                ? normalizeAiPromptOutputCapacity(storedValue, DEFAULT_SETTINGS)
+                : storedValue;
+            if (value !== storedValue) migrations.push([storageKey, value]);
             if (inputs[inputKey]) {
                 if (inputs[inputKey].dataset?.settingType === 'boolean-button') {
                     inputs[inputKey].setAttribute('aria-pressed', value ? 'true' : 'false');
@@ -123,6 +137,7 @@ export function createSettingsController({
                 }
             }
         }
+        if (migrations.length) await setStoredValues(migrations);
 
         document.getElementById('hires-settings').style.display = inputs.webuiEnableHires.checked ? 'grid' : 'none';
         syncImg2ImgEnabledState?.();
@@ -150,6 +165,10 @@ export function createSettingsController({
             }
 
             const storageKey = input.dataset?.storageKey || input.id.replace(/-/g, '_');
+            if (storageKey === 'comfyui_ai_prompt_response_length') {
+                value = normalizeAiPromptOutputCapacity(value, DEFAULT_SETTINGS);
+                input.value = value;
+            }
             settingsToSave[storageKey] = value;
         }
 
@@ -186,14 +205,19 @@ export function createSettingsController({
             try {
                 const imported = JSON.parse(await file.text());
                 const { settings, entries } = extractImportableSettings(imported, EXPORTABLE_STORAGE_KEYS);
+                const normalizedEntries = entries.map(([key, value]) => (
+                    key === 'comfyui_ai_prompt_response_length'
+                        ? [key, normalizeAiPromptOutputCapacity(value, DEFAULT_SETTINGS)]
+                        : [key, value]
+                ));
 
-                await setStoredValues(entries);
+                await setStoredValues(normalizedEntries);
                 if (Array.isArray(settings.comfyui_selected_loras)) {
                     setComfyUISelectedLoras(settings.comfyui_selected_loras);
                 }
 
-                await afterImport?.({ inputs, settings, entries });
-                showToast('success', `插件配置已导入 (${entries.length} 项)`);
+                await afterImport?.({ inputs, settings, entries: normalizedEntries });
+                showToast('success', `插件配置已导入 (${normalizedEntries.length} 项)`);
             } catch (error) {
                 logger.error('[AI Gen] 配置导入失败:', error);
                 showToast('error', `配置导入失败: ${error.message}`);

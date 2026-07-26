@@ -11,12 +11,16 @@ function normalizeRawOutput(rawOutput) {
             rawText: String(rawOutput.text || ''),
             reasoning: String(rawOutput.reasoning || ''),
             attempts: rawOutput.attempts || 1,
+            toolCalls: Number.parseInt(rawOutput.toolCalls, 10) || 0,
+            toolRounds: Number.parseInt(rawOutput.toolRounds, 10) || 0,
         };
     }
     return {
         rawText: String(rawOutput || ''),
         reasoning: '',
         attempts: 1,
+        toolCalls: 0,
+        toolRounds: 0,
     };
 }
 
@@ -82,7 +86,7 @@ export function createStoryboardService({
         });
 
         const rawOutput = await generateRawStoryboard(settings, quietPrompt, { maxPanels });
-        const { rawText, reasoning, attempts } = normalizeRawOutput(rawOutput);
+        const { rawText, reasoning, attempts, toolCalls, toolRounds } = normalizeRawOutput(rawOutput);
         const storyboard = parseStoryboardOutput(rawText, { maxPanels });
         await saveStoryboardToMessage(messageNode, storyboard);
 
@@ -90,6 +94,8 @@ export function createStoryboardService({
             provider: settings.provider,
             model: settings.apiModel || 'SillyTavern',
             attempts,
+            toolCalls,
+            toolRounds,
             targetIndex: index,
             panels: storyboard.panels.length,
             panelBeats: summarizePanels(storyboard),

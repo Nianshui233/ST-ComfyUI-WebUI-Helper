@@ -69,6 +69,7 @@ export function getPanelInputs() {
         aiPromptAutoGenerateImage: document.getElementById('comfyui-ai-prompt-auto-generate-image'),
         aiPromptContextMessages: document.getElementById('comfyui-ai-prompt-context-messages'),
         aiPromptResponseLength: document.getElementById('comfyui-ai-prompt-response-length'),
+        aiPromptGenerationProfile: document.getElementById('comfyui-ai-prompt-generation-profile'),
         aiPromptInstruction: document.getElementById('comfyui-ai-prompt-instruction'),
         aiPromptProvider: document.getElementById('comfyui-ai-prompt-provider'),
         aiPromptProviderPresetSelect: document.getElementById('comfyui-ai-prompt-provider-preset-select'),
@@ -84,6 +85,13 @@ export function getPanelInputs() {
         aiPromptThinkingStrategy: document.getElementById('comfyui-ai-prompt-thinking-strategy'),
         aiPromptThinkingEffort: document.getElementById('comfyui-ai-prompt-thinking-effort'),
         aiPromptThinkingBudget: document.getElementById('comfyui-ai-prompt-thinking-budget'),
+        aiPromptWebSearchEnabled: document.getElementById('comfyui-ai-prompt-web-search-enabled'),
+        aiPromptWebSearchProvider: document.getElementById('comfyui-ai-prompt-web-search-provider'),
+        aiPromptWebSearchApiUrl: document.getElementById('comfyui-ai-prompt-web-search-api-url'),
+        aiPromptWebSearchApiKey: document.getElementById('comfyui-ai-prompt-web-search-api-key'),
+        aiPromptWebSearchMaxResults: document.getElementById('comfyui-ai-prompt-web-search-max-results'),
+        aiPromptWebSearchMaxCalls: document.getElementById('comfyui-ai-prompt-web-search-max-calls'),
+        aiPromptWebSearchTimeout: document.getElementById('comfyui-ai-prompt-web-search-timeout'),
     };
 }
 
@@ -150,6 +158,7 @@ export function getPanelButtons(panel) {
         aiPromptProviderPresetLoad: document.getElementById('comfyui-ai-prompt-provider-preset-load'),
         aiPromptProviderPresetSave: document.getElementById('comfyui-ai-prompt-provider-preset-save'),
         aiPromptProviderPresetDelete: document.getElementById('comfyui-ai-prompt-provider-preset-delete'),
+        aiPromptWebSearchTest: document.getElementById('comfyui-ai-prompt-web-search-test'),
         logCopy: document.getElementById('comfyui-log-copy'),
         logExport: document.getElementById('comfyui-log-export'),
         logClear: document.getElementById('comfyui-log-clear'),

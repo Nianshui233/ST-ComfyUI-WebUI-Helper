@@ -5,7 +5,8 @@
   "type": "module",
   "description": "SillyTavern extension for ComfyUI/WebUI image generation.",
   "scripts": {
-    "check": "node scripts/check-js.mjs"
+    "check": "node scripts/check-js.mjs",
+    "test": "node --test"
   },
   "license": "UNLICENSED"
 }

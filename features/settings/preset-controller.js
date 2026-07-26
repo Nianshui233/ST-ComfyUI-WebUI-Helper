@@ -5,6 +5,7 @@ import {
     STORAGE_KEY_PROMPT_PRESETS,
 } from '../core/runtime-config.js';
 import { createAiPromptApiKeyManager } from '../ai-prompt/ai-api-key-manager.js';
+import { inferImagePromptGenerationProfile } from '../ai-prompt/image-prompt-profile.js';
 
 function getPromptPresetDataFromInputs() {
     return {
@@ -31,14 +32,22 @@ function promptPresetDataEquals(a, b) {
 }
 
 function getAiPromptRulePresetDataFromInputs() {
+    const instruction = document.getElementById('comfyui-ai-prompt-instruction')?.value || '';
+    const selectedProfile = document.getElementById('comfyui-ai-prompt-generation-profile')?.value || 'auto';
     return {
-        instruction: document.getElementById('comfyui-ai-prompt-instruction')?.value || '',
+        instruction,
+        generationProfile: selectedProfile,
     };
 }
 
-function normalizeAiPromptRulePresetData(data) {
+export function normalizeAiPromptRulePresetData(data) {
+    const instruction = String(data?.instruction || '');
+    const generationProfile = ['auto', 'natural_plain', 'illustrious_a1111'].includes(data?.generationProfile)
+        ? data.generationProfile
+        : inferImagePromptGenerationProfile(instruction);
     return {
-        instruction: String(data?.instruction || ''),
+        instruction,
+        generationProfile,
     };
 }
 
@@ -47,7 +56,9 @@ function isAiPromptRulePresetEmpty(data) {
 }
 
 function aiPromptRulePresetDataEquals(a, b) {
-    return normalizeAiPromptRulePresetData(a).instruction === normalizeAiPromptRulePresetData(b).instruction;
+    const left = normalizeAiPromptRulePresetData(a);
+    const right = normalizeAiPromptRulePresetData(b);
+    return left.instruction === right.instruction && left.generationProfile === right.generationProfile;
 }
 
 export function createPresetController({
@@ -116,10 +127,16 @@ export function createPresetController({
             },
             applyPreset: async (preset) => {
                 const aiPromptInstruction = document.getElementById('comfyui-ai-prompt-instruction');
+                const aiPromptGenerationProfile = document.getElementById('comfyui-ai-prompt-generation-profile');
                 if (!aiPromptInstruction) return;
-                aiPromptInstruction.value = String(preset?.instruction || '');
+                const normalizedPreset = normalizeAiPromptRulePresetData(preset);
+                aiPromptInstruction.value = normalizedPreset.instruction;
                 aiPromptInstruction.dispatchEvent(new Event('input', { bubbles: true }));
-                await saveSettings({ aiPromptInstruction });
+                if (aiPromptGenerationProfile) {
+                    aiPromptGenerationProfile.value = normalizedPreset.generationProfile;
+                    aiPromptGenerationProfile.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                await saveSettings({ aiPromptInstruction, aiPromptGenerationProfile });
             },
         });
 

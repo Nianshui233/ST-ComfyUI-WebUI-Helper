@@ -495,6 +495,8 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
         #${panelId} .ai-provider-block .comfy-hint:last-child { margin-bottom: 0; }
         #${panelId} .ai-thinking-mode-row { grid-template-columns: minmax(220px, 420px); }
         #${panelId} .ai-thinking-advanced[hidden] { display: none !important; }
+        #${panelId} .ai-web-search-fields[hidden] { display: none !important; }
+        #${panelId} #comfyui-ai-prompt-web-search-test { width: 100%; }
         #${panelId} .ai-provider-endpoint-hint { margin: 6px 0 10px; }
         #${panelId} .comfy-ai-prompt-instruction { min-height: 220px; }
 

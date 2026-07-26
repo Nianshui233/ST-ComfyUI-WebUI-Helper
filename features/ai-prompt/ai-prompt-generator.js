@@ -4,6 +4,7 @@ import {
     generateAiPromptWithOpenAICompatible,
     sanitizeAiPromptOutput,
 } from './ai-prompt-service.js';
+import { createAiToolBudget } from '../ai-tools/tool-loop.js';
 
 const AI_PROMPT_RETRY_DELAYS = [450, 1200];
 
@@ -32,6 +33,8 @@ export function createAiPromptGenerator({
                 reasoning: String(rawOutput.reasoning || ''),
                 attempts: rawOutput.attempts || 1,
                 parsed: rawOutput.parsed,
+                toolCalls: Number.parseInt(rawOutput.toolCalls, 10) || 0,
+                toolRounds: Number.parseInt(rawOutput.toolRounds, 10) || 0,
             };
         }
         return {
@@ -39,6 +42,8 @@ export function createAiPromptGenerator({
             reasoning: '',
             attempts: 1,
             parsed: null,
+            toolCalls: 0,
+            toolRounds: 0,
         };
     }
 
@@ -79,25 +84,28 @@ export function createAiPromptGenerator({
         throw lastError;
     }
 
-    function logAiPromptResult({ settings, messages, targetIndex, rawText, reasoning, prompt, attempts }) {
+    function logAiPromptResult({ settings, messages, targetIndex, rawText, reasoning, prompt, attempts, toolCalls, toolRounds }) {
         logger.info('[AI Gen] AI 绘图提示词分析完成', {
             provider: getProviderLabel(settings),
             attempts,
             targetIndex,
             contextMessages: messages.length,
             thinkingMode: settings.thinkingMode,
+            webSearchEnabled: settings.webSearchEnabled,
+            toolCalls,
+            toolRounds,
             reasoning: reasoning || '该接口未返回独立推理/思考内容；下方原始输出为模型最终可见返回。',
             finalPrompt: prompt,
             rawOutput: rawText,
         });
     }
 
-    async function generateAiPromptRawOutput(settings, quietPrompt) {
+    async function generateAiPromptRawOutput(settings, quietPrompt, serviceDeps = getAiPromptServiceDeps()) {
         if (settings.provider === 'openai_compatible') {
-            return generateAiPromptWithOpenAICompatible(settings, quietPrompt, getAiPromptServiceDeps());
+            return generateAiPromptWithOpenAICompatible(settings, quietPrompt, serviceDeps);
         }
         if (settings.provider === 'anthropic') {
-            return generateAiPromptWithAnthropic(settings, quietPrompt, getAiPromptServiceDeps());
+            return generateAiPromptWithAnthropic(settings, quietPrompt, serviceDeps);
         }
 
         const text = await generateQuietPrompt({
@@ -133,8 +141,12 @@ export function createAiPromptGenerator({
         });
 
         reportProgress(progress, 'request', `${getProviderLabel(settings)} 正在生成绘图提示词`, startedAt);
+        const serviceDeps = {
+            ...getAiPromptServiceDeps(),
+            toolBudget: createAiToolBudget({ maxCalls: settings.webSearchMaxCalls }),
+        };
         const rawOutput = await runWithTransientRetry(
-            () => generateAiPromptRawOutput(settings, quietPrompt),
+            () => generateAiPromptRawOutput(settings, quietPrompt, serviceDeps),
             'AI 绘图提示词生成',
             { progress, startedAt },
         );
@@ -143,6 +155,8 @@ export function createAiPromptGenerator({
             rawText,
             reasoning,
             attempts,
+            toolCalls,
+            toolRounds,
         } = normalizeRawOutput(rawOutput);
         const prompt = sanitizeAiPromptOutput(rawText);
 
@@ -161,6 +175,8 @@ export function createAiPromptGenerator({
             reasoning,
             prompt,
             attempts,
+            toolCalls,
+            toolRounds,
         });
         progress?.({
             detail: '绘图提示词已生成',

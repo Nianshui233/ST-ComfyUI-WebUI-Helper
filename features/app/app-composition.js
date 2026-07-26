@@ -24,6 +24,7 @@ export function createComfyWebuiHelperApp({
     setValue,
     request,
     generateQuietPrompt,
+    generateRaw,
     saveChatConditional,
     getContext,
 }) {
@@ -128,6 +129,7 @@ export function createComfyWebuiHelperApp({
         getValue,
         makeRequest,
         generateQuietPrompt,
+        generateRaw,
         saveChatConditional,
         getContext,
         imageCacheDB,
@@ -179,6 +181,7 @@ export function createComfyWebuiHelperApp({
         detectAiPromptModels: messageStack.detectAiPromptModels,
         populateAiPromptModelSelect: messageStack.populateAiPromptModelSelect,
         testAiPromptOpenAICompatibleApi: messageStack.testAiPromptOpenAICompatibleApi,
+        testAiPromptWebSearch: messageStack.testAiPromptWebSearch,
         testApiImageGeneration: generationStack.testApiImageGeneration,
         fetchAndPopulateModels: modelResourceService.fetchAndPopulateModels,
         fetchAndPopulateUNetModels: modelResourceService.fetchAndPopulateUNetModels,

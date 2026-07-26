@@ -5,6 +5,7 @@ export function createPanelApiListeners({
     saveSettings,
     detectAiPromptModels,
     testAiPromptOpenAICompatibleApi,
+    testAiPromptWebSearch,
     fetchAndPopulateModels,
     fetchAndPopulateUNetModels,
     fetchAndPopulateWebUIModels,
@@ -153,6 +154,25 @@ export function createPanelApiListeners({
             } finally {
                 buttons.aiPromptTestApi.disabled = false;
                 buttons.aiPromptTestApi.textContent = originalText;
+            }
+        });
+
+        buttons.aiPromptWebSearchTest?.addEventListener('click', async () => {
+            const query = window.prompt('输入不含聊天隐私的测试搜索词：', 'site:danbooru.donmai.us/wiki_pages character tag');
+            if (!String(query || '').trim()) return;
+
+            const originalHtml = buttons.aiPromptWebSearchTest.innerHTML;
+            buttons.aiPromptWebSearchTest.disabled = true;
+            buttons.aiPromptWebSearchTest.textContent = '搜索中...';
+            try {
+                await saveSettings(inputs);
+                await testAiPromptWebSearch(String(query).trim());
+            } catch (error) {
+                logger.error('[AI Gen] 网络搜索测试失败:', error);
+                showToast('error', error.message || String(error));
+            } finally {
+                buttons.aiPromptWebSearchTest.disabled = false;
+                buttons.aiPromptWebSearchTest.innerHTML = originalHtml;
             }
         });
 

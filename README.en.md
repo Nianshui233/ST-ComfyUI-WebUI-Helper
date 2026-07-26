@@ -30,6 +30,7 @@ It is designed for roleplay chats. The extension can ask a separate AI/LLM call 
 | LoRA tools | Search, batch select, order, apply weights, add trigger words, and verify ComfyUI LoRA injection. |
 | Workflow tools | Save, import, export, format, minify, validate, and convert workflow placeholders. |
 | AI/LLM management | Use SillyTavern's current LLM by default, or configure OpenAI-compatible / Anthropic APIs. |
+| Web-aware analysis | External analysis models can call the built-in `web_search` tool through Tavily or a self-hosted SearXNG instance. |
 | Rule presets | Save different analysis rules, such as Danbooru tags or FLUX-style natural-language prompts. |
 | API key list | Save multiple self-named local API keys with masked display. |
 | Runtime logs | Centralized logs for connection, AI calls, generation, errors, and cache operations. |
@@ -121,6 +122,15 @@ That does not require an extra API key. After the basic flow works, you can conf
 - Model selection: automatic or manual `/models` detection where supported.
 - Thinking mode: disable it first if a provider rejects reasoning parameters.
 
+### Enable web search for image analysis
+
+Web search is available only with an external `OpenAI-compatible` or `Anthropic` analysis source. Open `AI/LLM management -> 网络搜索工具`, enable it, then select either:
+
+- `Tavily Search API`: enter a separate Tavily API key; the extension fixes the target to Tavily's official endpoint.
+- `SearXNG (self-hosted)`: enter a trusted Search URL whose instance allows JSON output.
+
+Use `测试搜索` to verify the search service configuration; it does not verify whether the selected LLM supports tool calls. The tool loop, search request, result limits, and provider-specific message replay are implemented by this extension and do not require another SillyTavern extension. See [AI image-analysis web search](docs/AI_WEB_SEARCH.md) for protocol, privacy, and Danbooru guidance.
+
 ## Common Workflows
 
 ### Recommended: AI Image
@@ -188,11 +198,15 @@ By default, requests go through SillyTavern `/proxy`, so CORS is usually not req
 
 ### `finish_reason=length`
 
-Increase response length in `AI/LLM管理`, or simplify the drawing-analysis rule. Danbooru tag rules are usually more likely to hit output-length limits than natural-language rules.
+The extension normalizes the first-attempt output capacity to at least 4096 tokens. Single-image and storyboard requests start with that capacity; on an explicit truncation signal, the extension doubles it and regenerates the full result once. If the expanded attempt still fails, inspect the provider stop reason in the log and confirm the model's maximum output limit. Do not shorten drawing rules, tags, clothing, or scene details merely to work around truncation.
 
 ### Thinking mode causes API errors
 
 Disable thinking mode first. Different providers support different reasoning parameters. Re-enable it only after normal requests work.
+
+### Web search test fails
+
+For Tavily, verify the separate API key. For SearXNG, verify that the Search URL is reachable and `format=json` is enabled. External requests also require SillyTavern's core CORS Proxy. Web search is unavailable with the `SillyTavern current LLM` source.
 
 ### Image blocks flicker during generation
 
@@ -214,6 +228,7 @@ npm run check
 ```text
 features/
   ai-prompt/                AI/LLM prompt analysis, rule presets, API keys, model detection
+  ai-tools/                 Independent web search, tool loop, limits, and result replay
   api-image/                API image channels, key rotation, endpoint tests, telemetry
   app/                      Runtime composition, lifecycle, and feature stacks
   cache/                    Generated-image cache saving, grid view, and preview

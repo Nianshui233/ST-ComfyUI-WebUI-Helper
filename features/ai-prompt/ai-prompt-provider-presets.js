@@ -24,6 +24,12 @@ function getCurrentPreset(inputs) {
         thinkingStrategy: inputs.aiPromptThinkingStrategy?.value || 'auto',
         thinkingEffort: inputs.aiPromptThinkingEffort?.value || 'medium',
         thinkingBudget: Number.parseInt(inputs.aiPromptThinkingBudget?.value, 10) || 2048,
+        webSearchEnabled: !!inputs.aiPromptWebSearchEnabled?.checked,
+        webSearchProvider: inputs.aiPromptWebSearchProvider?.value || 'tavily',
+        webSearchApiUrl: String(inputs.aiPromptWebSearchApiUrl?.value || '').trim(),
+        webSearchMaxResults: Number.parseInt(inputs.aiPromptWebSearchMaxResults?.value, 10) || 5,
+        webSearchMaxCalls: Number.parseInt(inputs.aiPromptWebSearchMaxCalls?.value, 10) || 3,
+        webSearchTimeout: Number.parseInt(inputs.aiPromptWebSearchTimeout?.value, 10) || 20000,
         keyPresetName: String(inputs.aiPromptApiKeySelect?.value || '').trim(),
         timestamp: Date.now(),
     };
@@ -123,6 +129,12 @@ export function createAiPromptProviderPresetManager({
         applyValue(inputs.aiPromptThinkingStrategy, preset.thinkingStrategy || 'auto');
         applyValue(inputs.aiPromptThinkingEffort, preset.thinkingEffort || 'medium');
         applyValue(inputs.aiPromptThinkingBudget, preset.thinkingBudget ?? 2048);
+        applyValue(inputs.aiPromptWebSearchEnabled, preset.webSearchEnabled ?? false);
+        applyValue(inputs.aiPromptWebSearchProvider, preset.webSearchProvider || 'tavily');
+        applyValue(inputs.aiPromptWebSearchApiUrl, preset.webSearchApiUrl || '');
+        applyValue(inputs.aiPromptWebSearchMaxResults, preset.webSearchMaxResults ?? 5);
+        applyValue(inputs.aiPromptWebSearchMaxCalls, preset.webSearchMaxCalls ?? 3);
+        applyValue(inputs.aiPromptWebSearchTimeout, preset.webSearchTimeout ?? 20000);
         if (inputs.aiPromptApiKeySelect && preset.keyPresetName) {
             inputs.aiPromptApiKeySelect.value = preset.keyPresetName;
         }

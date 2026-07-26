@@ -30,6 +30,8 @@ export function createAiPromptProviderUiController({
     function updateAiPromptProviderUI() {
         const useExternal = ['openai_compatible', 'anthropic'].includes(inputs.aiPromptProvider?.value);
         const thinkingEnabled = inputs.aiPromptThinkingMode?.value === 'enabled';
+        const webSearchEnabled = useExternal && !!inputs.aiPromptWebSearchEnabled?.checked;
+        const webSearchProvider = inputs.aiPromptWebSearchProvider?.value || 'tavily';
         [
             inputs.aiPromptApiUrl,
             inputs.aiPromptApiKey,
@@ -52,6 +54,7 @@ export function createAiPromptProviderUiController({
             buttons.aiPromptProviderPresetLoad,
             buttons.aiPromptProviderPresetSave,
             buttons.aiPromptProviderPresetDelete,
+            inputs.aiPromptWebSearchEnabled,
         ].forEach(input => {
             if (input) input.disabled = !useExternal;
         });
@@ -62,8 +65,27 @@ export function createAiPromptProviderUiController({
         ].forEach(input => {
             if (input) input.disabled = !useExternal || !thinkingEnabled;
         });
+        [
+            inputs.aiPromptWebSearchProvider,
+            inputs.aiPromptWebSearchMaxResults,
+            inputs.aiPromptWebSearchMaxCalls,
+            inputs.aiPromptWebSearchTimeout,
+            buttons.aiPromptWebSearchTest,
+        ].forEach(input => {
+            if (input) input.disabled = !webSearchEnabled;
+        });
+        if (inputs.aiPromptWebSearchApiUrl) {
+            inputs.aiPromptWebSearchApiUrl.disabled = !webSearchEnabled || webSearchProvider !== 'searxng';
+        }
+        if (inputs.aiPromptWebSearchApiKey) {
+            inputs.aiPromptWebSearchApiKey.disabled = !webSearchEnabled || webSearchProvider !== 'tavily';
+        }
         document.getElementById('comfyui-ai-prompt-api-settings')?.classList.toggle('is-disabled', !useExternal);
         document.getElementById('comfyui-ai-prompt-thinking-advanced')?.toggleAttribute('hidden', !thinkingEnabled);
+        document.getElementById('comfyui-ai-prompt-web-search-settings')?.classList.toggle('is-disabled', !useExternal);
+        document.querySelectorAll('#comfyui-ai-prompt-web-search-settings .ai-web-search-fields').forEach(element => {
+            element.toggleAttribute('hidden', !webSearchEnabled);
+        });
     }
 
     function initAiPromptProviderUi() {
@@ -75,6 +97,8 @@ export function createAiPromptProviderUiController({
             scheduleAiPromptModelDetection();
         });
         inputs.aiPromptThinkingMode?.addEventListener('change', updateAiPromptProviderUI);
+        inputs.aiPromptWebSearchEnabled?.addEventListener('change', updateAiPromptProviderUI);
+        inputs.aiPromptWebSearchProvider?.addEventListener('change', updateAiPromptProviderUI);
         inputs.aiPromptApiModelSelect?.addEventListener('change', () => {
             if (!inputs.aiPromptApiModelSelect.value || !inputs.aiPromptApiModel) return;
             inputs.aiPromptApiModel.value = inputs.aiPromptApiModelSelect.value;

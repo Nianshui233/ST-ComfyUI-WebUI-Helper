@@ -12,9 +12,17 @@ export function getPanelPromptTemplate({ panelId, modes }) {
 					</div>
 					<div class="comfy-settings-grid">
 						<div><label for="comfyui-ai-prompt-context-messages">上下文条数</label><input id="comfyui-ai-prompt-context-messages" type="number" min="1" max="20" step="1" value="6"></div>
-						<div><label for="comfyui-ai-prompt-response-length">响应长度</label><input id="comfyui-ai-prompt-response-length" type="number" min="1" step="10" value="350"></div>
+						<div><label for="comfyui-ai-prompt-response-length">首轮输出容量(tokens)</label><input id="comfyui-ai-prompt-response-length" type="number" min="4096" step="512" value="4096"></div>
+						<div>
+							<label for="comfyui-ai-prompt-generation-profile">生成档案</label>
+							<select id="comfyui-ai-prompt-generation-profile">
+								<option value="auto">跟随绘图规则声明</option>
+								<option value="natural_plain">自然语言 / Plain text</option>
+								<option value="illustrious_a1111">Danbooru / Illustrious / A1111</option>
+							</select>
+						</div>
 					</div>
-					<div class="comfy-hint">响应长度由当前数值决定；Danbooru 标签块、FLUX 自然语言等格式完全按下方绘图分析规则执行。</div>
+					<div class="comfy-hint">该数值是单图和分镜第一次请求的传输上限，不是提示词目标长度，也不会限制 tag、服饰或细节数量；明确截断时会自动翻倍并完整重试一次。生成档案决定最终提示词的解析方式，并随绘图分析规则预设保存。</div>
 				</fieldset>
 				<fieldset>
 					<legend>LLM 来源</legend>
@@ -52,7 +60,7 @@ export function getPanelPromptTemplate({ panelId, modes }) {
 									<button id="comfyui-ai-prompt-provider-preset-delete" class="comfy-button error" title="删除选中的渠道预设">删除渠道</button>
 								</div>
 							</div>
-							<div class="comfy-hint">渠道预设保存 LLM 来源、Base URL、模型、温度、超时与思考参数；API Key 仍由下面的 Key 列表单独保存，不会把明文 Key 混进渠道配置。</div>
+							<div class="comfy-hint">渠道预设保存 LLM 来源、Base URL、模型、温度、超时、思考与搜索参数；LLM 和搜索 API Key 都不会写入渠道预设。</div>
 						</div>
 						<div class="ai-provider-block">
 							<div class="ai-provider-block-title"><i class="fa-solid fa-plug"></i><span>连接与密钥</span></div>
@@ -124,6 +132,30 @@ export function getPanelPromptTemplate({ panelId, modes }) {
 								</div>
 								<div class="comfy-hint">开启后会按 OpenAI / Anthropic / DeepSeek 的常见 API 形态注入字段。</div>
 							</div>
+						</div>
+						<div class="ai-provider-block" id="comfyui-ai-prompt-web-search-settings">
+							<div class="ai-provider-block-title"><i class="fa-solid fa-globe"></i><span>网络搜索工具</span></div>
+							<label class="comfy-auto-generate-label"><input id="comfyui-ai-prompt-web-search-enabled" type="checkbox"><b>允许模型搜索网络</b><span>- 查询词会发给搜索服务，敏感聊天勿开启</span></label>
+							<div class="comfy-settings-grid ai-web-search-fields">
+								<div>
+									<label for="comfyui-ai-prompt-web-search-provider">搜索服务</label>
+									<select id="comfyui-ai-prompt-web-search-provider">
+										<option value="tavily">Tavily Search API</option>
+										<option value="searxng">SearXNG（自建）</option>
+									</select>
+								</div>
+								<div><label for="comfyui-ai-prompt-web-search-api-url">SearXNG Search URL</label><input id="comfyui-ai-prompt-web-search-api-url" type="text" placeholder="https://search.example.com/search"></div>
+							</div>
+							<div class="comfy-settings-grid ai-web-search-fields">
+								<div><label for="comfyui-ai-prompt-web-search-api-key">Tavily API Key</label><input id="comfyui-ai-prompt-web-search-api-key" type="password" autocomplete="off" placeholder="tvly-..."></div>
+								<div><label for="comfyui-ai-prompt-web-search-timeout">搜索超时(ms)</label><input id="comfyui-ai-prompt-web-search-timeout" type="number" min="1000" max="120000" step="1000" value="20000"></div>
+							</div>
+							<div class="comfy-settings-grid ai-web-search-fields">
+								<div><label for="comfyui-ai-prompt-web-search-max-results">单次结果数</label><input id="comfyui-ai-prompt-web-search-max-results" type="number" min="1" max="10" step="1" value="5"></div>
+								<div><label for="comfyui-ai-prompt-web-search-max-calls">单次分析工具调用额度</label><input id="comfyui-ai-prompt-web-search-max-calls" type="number" min="1" max="8" step="1" value="3"></div>
+							</div>
+							<button id="comfyui-ai-prompt-web-search-test" class="comfy-button" type="button"><i class="fa-solid fa-magnifying-glass"></i><span>测试搜索</span></button>
+							<div class="comfy-hint">Tavily 使用固定官方端点；SearXNG 需要实例开启 JSON 输出。“测试搜索”只验证搜索服务，不验证所选 LLM 的工具调用能力。搜索逻辑和工具回合均由本插件执行，不依赖其他 SillyTavern 扩展。搜索 Key 保存在浏览器本地且不会随配置导出。</div>
 						</div>
 						<div class="comfy-hint ai-provider-endpoint-hint">OpenAI 兼容模式会请求 <code>/chat/completions</code>，模型列表检测会请求 <code>/models</code>；Anthropic API 走 <code>/v1/messages</code>。</div>
 						<button id="comfyui-ai-prompt-test-api" class="comfy-button" style="width:100%; margin-top: 10px;">测试 AI 接口</button>

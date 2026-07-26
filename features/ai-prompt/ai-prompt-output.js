@@ -6,7 +6,10 @@ export function extractAnthropicText(payload) {
         .map(part => {
             if (typeof part === 'string') return part;
             if (part?.type === 'text' && typeof part.text === 'string') return part.text;
-            return part?.text || part?.content || part?.value || '';
+            if (typeof part?.text === 'string') return part.text;
+            if (typeof part?.content === 'string') return part.content;
+            if (typeof part?.value === 'string') return part.value;
+            return '';
         })
         .filter(Boolean)
         .join('\n');
@@ -19,7 +22,8 @@ function extractTextFromContentParts(parts, { includeTypes = ['text'] } = {}) {
             if (typeof part === 'string') return includeTypes.includes('text') ? part : '';
             const type = part?.type || '';
             if (includeTypes.length && type && !includeTypes.includes(type)) return '';
-            return part?.text || part?.thinking || part?.content || part?.value || part?.summary || '';
+            const values = [part?.text, part?.thinking, part?.content, part?.value, part?.summary];
+            return values.find(value => typeof value === 'string') || '';
         })
         .filter(Boolean)
         .join('\n');
@@ -32,7 +36,8 @@ export function extractOpenAICompatibleText(payload) {
         const parts = content
             .map(part => {
                 if (typeof part === 'string') return part;
-                return part?.text || part?.content || part?.value || '';
+                const values = [part?.text, part?.content, part?.value];
+                return values.find(value => typeof value === 'string') || '';
             })
             .filter(Boolean);
         if (parts.length) return parts.join('\n');
@@ -45,7 +50,10 @@ export function extractOpenAICompatibleText(payload) {
 
     const output = Array.isArray(payload?.output) ? payload.output : [];
     return output.flatMap(item => Array.isArray(item?.content) ? item.content : [])
-        .map(part => part?.text || part?.content || part?.value || '')
+        .map(part => {
+            const values = [part?.text, part?.content, part?.value];
+            return values.find(value => typeof value === 'string') || '';
+        })
         .filter(Boolean)
         .join('\n');
 }
@@ -95,7 +103,7 @@ export function extractAiPromptReasoning(payload) {
 
 export function summarizeAIEmptyResponse(payload) {
     const choice = payload?.choices?.[0];
-    const finishReason = choice?.finish_reason || choice?.finishReason || payload?.finish_reason || '';
+    const finishReason = choice?.finish_reason || choice?.finishReason || payload?.finish_reason || payload?.stop_reason || '';
     const refusal = choice?.message?.refusal || choice?.message?.content_filter_results || payload?.error?.message || payload?.message || '';
     const parts = [
         finishReason ? `finish_reason=${finishReason}` : '',
