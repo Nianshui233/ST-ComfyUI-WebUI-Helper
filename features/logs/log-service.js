@@ -105,9 +105,31 @@ function toDetailText(value) {
             const text = typeof entryValue === 'string'
                 ? entryValue
                 : JSON.stringify(entryValue, null, 2);
-            return `【${key}】\n${text}`;
+            const lines = String(text).split('\n');
+            if (lines.length === 1) return `${key} : ${lines[0]}`;
+            return `${key} :\n${lines.map(line => `  ${line}`).join('\n')}`;
         })
-        .join('\n\n');
+        .join('\n');
+}
+
+function formatLogTimestamp(value) {
+    const date = new Date(value);
+    const pad = (number, width = 2) => String(number).padStart(width, '0');
+    return [
+        date.getFullYear(),
+        pad(date.getMonth() + 1),
+        pad(date.getDate()),
+    ].join('-') + ` ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`;
+}
+
+function formatLogLevel(level) {
+    return {
+        debug: 'DEBUG',
+        error: 'ERROR',
+        info: 'INFO ',
+        success: 'SUCC ',
+        warning: 'WARN ',
+    }[level] || 'INFO ';
 }
 
 function buildMessage(parts) {
@@ -209,10 +231,11 @@ export function createLogStore({ maxEntries = 600, logger = console } = {}) {
 
     function formatEntriesForText(targetEntries = entries) {
         return targetEntries.map(entry => {
-            const time = new Date(entry.time).toLocaleString();
-            const details = entry.details ? `\n${entry.details}` : '';
-            return `[${time}] [${entry.level.toUpperCase()}] [${entry.source}] ${entry.message}${details}`;
-        }).join('\n\n');
+            const details = entry.details
+                ? `\n${entry.details.split('\n').map(line => `    ${line}`).join('\n')}`
+                : '';
+            return `[${formatLogTimestamp(entry.time)}] [${formatLogLevel(entry.level)}] [${entry.source}] ${entry.message}${details}`;
+        }).join('\n');
     }
 
     function createLogger(baseLogger = logger) {
