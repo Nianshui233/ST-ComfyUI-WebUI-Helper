@@ -70,3 +70,26 @@ test('saveAiPromptToMessage keeps legacy fields and stores the optional generati
     assert.equal(chat[0].extra.unrelated, 'keep');
     assert.equal(saves, 1);
 });
+
+test('prompt history keeps versions and lock blocks generated rewrites', async () => {
+    const chat = [{ mes: 'target', extra: {} }];
+    const store = createAiPromptMessageStore({
+        getContext: () => ({ chat }),
+        getValue: async (_key, fallback) => fallback,
+        saveChatConditional: async () => {},
+        htmlToText: value => value,
+    });
+    const messageNode = { getAttribute: name => name === 'mesid' ? '0' : null };
+    await store.saveAiPromptToMessage(messageNode, 'version one', 'version one', { source: 'manual' });
+    await store.toggleAiPromptLock(messageNode);
+    await assert.rejects(
+        store.saveAiPromptToMessage(messageNode, 'generated rewrite', 'generated rewrite', { source: 'generated' }),
+        /已锁定/,
+    );
+    await store.saveAiPromptToMessage(messageNode, 'version two', 'version two', { source: 'manual', force: true });
+    const state = store.getAiPromptState(chat[0]);
+    assert.equal(state.locked, true);
+    assert.deepEqual(state.versions.map(version => version.prompt), ['version one', 'version two']);
+    await store.restoreAiPromptVersion(messageNode, state.versions[0].id);
+    assert.equal(store.getStoredAiPrompt(chat[0]), 'version one');
+});

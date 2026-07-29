@@ -1,24 +1,33 @@
 export function getImagesFromHistory(history, promptId) {
+    return getMediaFromHistory(history, promptId);
+}
+
+function inferMediaType(item, source = '') {
+    const name = String(item?.filename || item?.name || '').toLowerCase();
+    if (source === 'videos' || /\.(mp4|webm|mov|mkv|avi)$/i.test(name)) return 'video';
+    return 'image';
+}
+
+export function getMediaFromHistory(history, promptId) {
     const outputs = history[promptId]?.outputs;
     if (!outputs) {
         return [];
     }
 
-    const images = [];
+    const media = [];
 
     for (const nodeOutput of Object.values(outputs)) {
-        if (nodeOutput.images?.length) {
-            images.push(...nodeOutput.images);
-        }
-        if (nodeOutput.ui?.images?.length) {
-            images.push(...nodeOutput.ui.images);
-        }
-        if (nodeOutput.gifs?.length) {
-            images.push(...nodeOutput.gifs);
+        for (const source of ['images', 'gifs', 'videos']) {
+            if (nodeOutput[source]?.length) {
+                media.push(...nodeOutput[source].map(item => ({ ...item, mediaType: inferMediaType(item, source) })));
+            }
+            if (nodeOutput.ui?.[source]?.length) {
+                media.push(...nodeOutput.ui[source].map(item => ({ ...item, mediaType: inferMediaType(item, source) })));
+            }
         }
     }
 
-    return images.filter(image => image?.filename);
+    return media.filter(item => item?.filename);
 }
 
 export function summarizeHistoryEntry(history, promptId) {
@@ -36,6 +45,7 @@ export function summarizeHistoryEntry(history, promptId) {
             images: nodeOutput?.images?.length || 0,
             uiImages: nodeOutput?.ui?.images?.length || 0,
             gifs: nodeOutput?.gifs?.length || 0,
+            videos: nodeOutput?.videos?.length || 0,
         })),
     };
 }
@@ -49,13 +59,26 @@ export function buildComfyViewUrl(baseUrl, image) {
 }
 
 export function pickImageUrlFromList(images, baseUrl) {
-    if (!Array.isArray(images) || images.length === 0) return null;
-    const valid = images.filter(image => image?.filename);
-    const preferred = valid.find(image => image.type === 'output') || valid[0];
-    return preferred ? buildComfyViewUrl(baseUrl, preferred) : null;
+    return pickMediaFromList(images, baseUrl)?.mediaUrl || null;
+}
+
+export function pickMediaFromList(items, baseUrl) {
+    if (!Array.isArray(items) || items.length === 0) return null;
+    const valid = items.filter(item => item?.filename);
+    const preferred = valid.find(item => item.type === 'output') || valid[0];
+    if (!preferred) return null;
+    return {
+        mediaUrl: buildComfyViewUrl(baseUrl, preferred),
+        mediaType: preferred.mediaType || inferMediaType(preferred),
+        fileName: preferred.filename,
+    };
 }
 
 export function findImageUrlInHistory(history, promptId, baseUrl, { silent = false, logger = console } = {}) {
+    return findMediaInHistory(history, promptId, baseUrl, { silent, logger })?.mediaUrl || null;
+}
+
+export function findMediaInHistory(history, promptId, baseUrl, { silent = false, logger = console } = {}) {
     const outputs = history[promptId]?.outputs;
     if (!outputs) {
         if (!silent) {
@@ -64,8 +87,8 @@ export function findImageUrlInHistory(history, promptId, baseUrl, { silent = fal
         return null;
     }
 
-    const imageUrl = pickImageUrlFromList(getImagesFromHistory(history, promptId), baseUrl);
-    if (imageUrl) return imageUrl;
+    const media = pickMediaFromList(getMediaFromHistory(history, promptId), baseUrl);
+    if (media) return media;
 
     if (!silent) {
         logger.warn('[AI Gen] 未在以下输出中找到图片:', Object.keys(outputs).map(id => ({ id, keys: Object.keys(outputs[id]) })));

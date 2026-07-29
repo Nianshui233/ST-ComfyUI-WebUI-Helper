@@ -105,7 +105,7 @@ test('generateSingle keeps drawing rules in system and chat data in user content
         messageNode,
         'medium shot, detailed layered clothing',
         '[IMG_GEN]\nmedium shot, detailed layered clothing\n[/IMG_GEN]',
-        { generationProfile: 'natural_plain' },
+        { generationProfile: 'natural_plain', source: 'generated' },
     ]]);
 });
 

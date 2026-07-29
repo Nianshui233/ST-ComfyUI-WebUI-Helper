@@ -11,6 +11,7 @@ import { DEFAULT_SETTINGS } from '../core/runtime-config.js';
 import { createStoryboardActionHandler } from '../storyboard/storyboard-action-handler.js';
 import { createStoryboardStore } from '../storyboard/storyboard-store.js';
 import { createWebSearchToolAdapter } from '../ai-tools/web-search-tool-adapter.js';
+import { createStreamingPregeneration } from './streaming-pregeneration.js';
 
 export function createAiPromptController({
     getStoredValues,
@@ -29,6 +30,7 @@ export function createAiPromptController({
     isMessageStreaming,
     isHelperEnabled,
     saveSettings,
+    taskStore,
     showToast,
     logger = console,
 }) {
@@ -44,8 +46,11 @@ export function createAiPromptController({
         clearAiPromptFromMessage,
         getChatMessageByNode,
         getStoredAiPrompt,
+        getAiPromptState,
         isAiPromptEligibleMessage,
         saveAiPromptToMessage,
+        restoreAiPromptVersion,
+        toggleAiPromptLock,
     } = messageStore;
     const storyboardStore = createStoryboardStore({
         getChatMessageByNode,
@@ -101,10 +106,55 @@ export function createAiPromptController({
         saveAiPromptToMessage,
         saveStoryboardToMessage: storyboardStore.saveStoryboardToMessage,
         providerAdapter,
+        taskStore,
         logger,
     });
     const generateAiPromptForMessage = imagePromptEngine.generateSingle;
     const generateStoryboardForMessage = imagePromptEngine.generateStoryboard;
+    const pregenTimers = new Map();
+    const streamingPregeneration = createStreamingPregeneration({
+        generateDraft: (messageNode, options) => imagePromptEngine.generateSingle(messageNode, {
+            ...options,
+            save: false,
+            trackTask: false,
+        }),
+        getSettings: async () => {
+            const values = await getStoredValues([
+                ['comfyui_stream_pregen_enabled', DEFAULT_SETTINGS.streamPregenEnabled],
+                ['comfyui_stream_pregen_min_chars', DEFAULT_SETTINGS.streamPregenMinChars],
+                ['comfyui_stream_pregen_max_concurrent', DEFAULT_SETTINGS.streamPregenMaxConcurrent],
+            ]);
+            return {
+                enabled: values.comfyui_stream_pregen_enabled,
+                minChars: Math.max(120, Number(values.comfyui_stream_pregen_min_chars) || DEFAULT_SETTINGS.streamPregenMinChars),
+                maxConcurrent: Math.min(2, Math.max(1, Number(values.comfyui_stream_pregen_max_concurrent) || 1)),
+            };
+        },
+        getMessageText: messageNode => messageNode?.querySelector('.mes_text')?.textContent || '',
+        getMessageKey: getStableMessageId,
+        taskStore,
+        logger,
+    });
+
+    async function scheduleStreamingPregeneration(messageNode) {
+        const key = getStableMessageId(messageNode);
+        clearTimeout(pregenTimers.get(key));
+        const stabilityMs = Math.max(800, Number(await getValue(
+            'comfyui_stream_pregen_stability_ms',
+            DEFAULT_SETTINGS.streamPregenStabilityMs,
+        )) || DEFAULT_SETTINGS.streamPregenStabilityMs);
+        pregenTimers.set(key, setTimeout(() => {
+            pregenTimers.delete(key);
+            if (isMessageStreaming(messageNode)) streamingPregeneration.maybeStart(messageNode);
+        }, stabilityMs));
+    }
+
+    async function consumeStreamingDraft(messageNode) {
+        const prompt = streamingPregeneration.consume(messageNode);
+        if (!prompt) return '';
+        await saveAiPromptToMessage(messageNode, prompt, prompt, { source: 'streaming-pre-generation' });
+        return prompt;
+    }
 
     const {
         buildGenerateButtonGroup,
@@ -122,6 +172,7 @@ export function createAiPromptController({
         getAiPromptSettings,
         getChatMessageByNode,
         getStoredAiPrompt,
+        getAiPromptState,
         getStableMessageId,
         isAiPromptEligibleMessage,
         isMessageStreaming,
@@ -129,6 +180,7 @@ export function createAiPromptController({
         buildGenerateButtonGroup,
         setupGenerateButtonGroups,
         generateAiPromptForMessage,
+        consumeStreamingDraft,
         renderStoryboardForPanel: (...args) => storyboardActionHandler?.renderStoryboardForPanel?.(...args),
         showToast,
         logger,
@@ -141,6 +193,8 @@ export function createAiPromptController({
         renderAiPromptControlsForMessage,
         saveCurrentSettings: saveSettings,
         saveAiPromptToMessage,
+        restoreAiPromptVersion,
+        toggleAiPromptLock,
         onStoryboardActionClick: (...args) => storyboardActionHandler?.onStoryboardActionClick?.(...args),
         showToast,
         logger,
@@ -172,5 +226,6 @@ export function createAiPromptController({
         setupGenerateButtonGroups,
         testAiPromptOpenAICompatibleApi,
         testAiPromptWebSearch,
+        scheduleStreamingPregeneration,
     };
 }

@@ -14,6 +14,7 @@ export function createManualScanController() {
         },
         start() {
             if (!controls) return false;
+            if (enabled) return true;
             enabled = true;
             controls.start?.();
             return true;

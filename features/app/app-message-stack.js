@@ -19,6 +19,7 @@ export function createMessageStack({
     streamingState,
     manualScan,
     helperActivation,
+    taskStore,
     saveSettings,
     showToast,
     logger = console,
@@ -42,6 +43,7 @@ export function createMessageStack({
         isMessageStreaming: (...args) => messageActionController?.isMessageStreaming?.(...args) ?? false,
         isHelperEnabled: () => helperActivation?.isEnabled?.() ?? true,
         saveSettings,
+        taskStore,
         showToast,
         logger,
     });
@@ -54,6 +56,7 @@ export function createMessageStack({
         buildGenerateButtonGroup: (...args) => aiPromptController.buildGenerateButtonGroup(...args),
         setupGenerateButtonGroups: (...args) => aiPromptController.setupGenerateButtonGroups(...args),
         renderAiPromptControlsForMessage: (...args) => aiPromptController.renderAiPromptControlsForMessage(...args),
+        scheduleStreamingPregeneration: (...args) => aiPromptController.scheduleStreamingPregeneration(...args),
         isHelperEnabled: () => helperActivation?.isEnabled?.() ?? true,
         logger,
     });

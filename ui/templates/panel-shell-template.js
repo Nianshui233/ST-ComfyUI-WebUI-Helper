@@ -53,11 +53,13 @@ export function getPanelShellTemplate({ panelId, modes }) {
 				<button class="tab-button" data-tab="img2img"><i class="fa-solid fa-image"></i><span>图生图</span></button>
 				<button class="tab-button" data-tab="prompts"><i class="fa-solid fa-align-left"></i><span>提示词</span></button>
 				<button class="tab-button" data-tab="ai-prompt"><i class="fa-solid fa-brain"></i><span>AI/LLM管理</span></button>
+				<button class="tab-button" data-tab="studio"><i class="fa-solid fa-fingerprint"></i><span>素材台</span></button>
 				<button class="tab-button comfyui-settings" data-tab="workflows"><i class="fa-solid fa-diagram-project"></i><span>工作流管理</span></button>
 				<button class="tab-button webui-settings" data-tab="loras" style="display: none;"><i class="fa-solid fa-layer-group"></i><span>WebUI LoRA</span></button>
 				<button class="tab-button comfyui-settings" data-tab="comfy-loras"><i class="fa-solid fa-layer-group"></i><span>ComfyUI LoRA</span></button>
 				<button class="tab-button api-settings" data-tab="api-image"><i class="fa-solid fa-cloud-arrow-up"></i><span>API 生图</span></button>
-				<button class="tab-button" data-tab="cache"><i class="fa-solid fa-box-archive"></i><span>图片缓存</span></button>
+				<button class="tab-button" data-tab="cache"><i class="fa-solid fa-box-archive"></i><span>媒体缓存</span></button>
+				<button class="tab-button" data-tab="tasks"><i class="fa-solid fa-list-check"></i><span>任务</span></button>
 				<button class="tab-button" data-tab="logs"><i class="fa-solid fa-clipboard-list"></i><span>运行日志</span></button>
 			</div>
 `;

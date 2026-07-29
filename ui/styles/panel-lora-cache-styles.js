@@ -164,18 +164,22 @@ export function getPanelLoraCacheStyles({ panelId, buttonId }) {
         }
 
         .cache-item {
+            position: relative;
             overflow: hidden;
             border: 1px solid var(--vp-border-color);
             border-radius: var(--vp-radius-md);
             background: var(--vp-surface-1);
             transition: transform var(--vp-dur) var(--vp-ease), box-shadow var(--vp-dur), border-color var(--vp-dur);
         }
+        .cache-item.is-selected { border-color: var(--vp-accent-color); box-shadow: inset 0 0 0 1px var(--vp-accent-color); }
         .cache-item:hover {
             transform: translateY(-3px);
             border-color: var(--vp-accent-border);
             box-shadow: var(--vp-shadow-2);
         }
-        .cache-item-image { width: 100%; height: 150px; object-fit: cover; cursor: pointer; }
+        .cache-item-image { display: block; width: 100%; height: 150px; object-fit: cover; cursor: pointer; background: var(--vp-surface-sunken); }
+        .cache-item-select { position: absolute; top: 8px; left: 8px; width: 18px; height: 18px; accent-color: var(--vp-accent-color); }
+        .cache-item-type { position: absolute; top: 8px; right: 8px; padding: 2px 5px; color: #fff; font-size: 9px; font-weight: 700; border-radius: 3px; background: rgba(0, 0, 0, 0.68); }
         .cache-item-info { padding: var(--vp-space-3); }
         .cache-item-prompt {
             margin-bottom: var(--vp-space-2);
@@ -204,8 +208,20 @@ export function getPanelLoraCacheStyles({ panelId, buttonId }) {
             -webkit-backdrop-filter: blur(6px);
             backdrop-filter: blur(6px);
         }
-        .cache-image-modal img { max-width: 90%; max-height: 90%; border-radius: var(--vp-radius-md); box-shadow: var(--vp-shadow-pop); }
-        .cache-modal-close { position: absolute; top: 20px; right: 30px; z-index: 10003; color: #fff; font-size: 2em; cursor: pointer; }
+        .cache-modal-media { display: contents; }
+        .cache-image-modal img,
+        .cache-image-modal video { max-width: 90%; max-height: 90%; border-radius: var(--vp-radius-md); box-shadow: var(--vp-shadow-pop); }
+        .cache-modal-close { position: absolute; top: 20px; right: 30px; z-index: 10003; width: 40px; height: 40px; color: #fff; font-size: 20px; border: 0; background: rgba(0,0,0,.45); cursor: pointer; }
+        .cache-storage-estimate { margin-bottom: var(--vp-space-3); color: var(--vp-text-dim); font-size: 11px; }
+        .cache-governance-row { display: grid; grid-template-columns: minmax(180px, 1fr) 150px 150px; gap: var(--vp-space-2); margin-bottom: var(--vp-space-2); }
+        .cache-limit-row { grid-template-columns: 160px 160px auto; align-items: end; margin-bottom: var(--vp-space-4); }
+        .cache-limit-row label { margin: 0; }
+        .cache-pagination { display: flex; justify-content: center; align-items: center; gap: var(--vp-space-3); margin-top: var(--vp-space-3); color: var(--vp-text-muted); font-size: 12px; }
+
+        @media (max-width: 700px) {
+            .cache-governance-row,
+            .cache-limit-row { grid-template-columns: 1fr; }
+        }
 
         .prompt-preset-container { margin-bottom: var(--vp-space-4); padding: var(--vp-space-4); }
         .prompt-preset-controls { display: flex; gap: var(--vp-space-2); align-items: center; margin-bottom: var(--vp-space-3); }

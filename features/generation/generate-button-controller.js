@@ -19,6 +19,7 @@ export function createGenerateButtonController({
     displayImageGrid,
     comparisonMode,
     progressTracker,
+    taskStore,
     setAiPromptPanelBusy,
     showToast,
     logger = console,
@@ -109,6 +110,7 @@ export function createGenerateButtonController({
             sampler: mode === MODES.COMFYUI ? metadataSettings.comfyui_sampler : metadataSettings.webui_sampler,
             seed: primaryImage.seed,
             generationTime: Date.now() - startedAt,
+            ...resultMetadata,
         };
     }
 
@@ -128,7 +130,7 @@ export function createGenerateButtonController({
         const imageContainer = getGeneratedImageContainer(group);
         if (!imageContainer?.classList?.contains('comfy-image-container')) return false;
 
-        const hasImage = !!imageContainer.querySelector('img');
+        const hasImage = !!imageContainer.querySelector('img, video');
         const slot = imageContainer.closest('.comfy-storyboard-image-slot, .comfy-ai-prompt-image-slot');
         const storyboardPanel = imageContainer.closest('.comfy-storyboard-panel');
 
@@ -151,7 +153,7 @@ export function createGenerateButtonController({
     function refreshStoryboardPanelLayout(panel) {
         if (!panel) return;
         const slot = panel.querySelector('.comfy-storyboard-image-slot');
-        if (slot?.querySelector('img')) {
+        if (slot?.querySelector('img, video')) {
             slot.classList.add('has-image');
             panel.classList.add('has-image');
         }
@@ -252,15 +254,24 @@ export function createGenerateButtonController({
 
         clearComparisonUI(group);
         const oldContainer = getGeneratedImageContainer(group);
-        if (oldContainer?.classList.contains('comfy-image-container') && !oldContainer.querySelector('img')) oldContainer.remove();
+        if (oldContainer?.classList.contains('comfy-image-container') && !oldContainer.querySelector('img, video')) oldContainer.remove();
 
         progressTracker.createUI(group);
+        const currentMode = getCurrentMode();
+        const taskId = taskStore?.start({
+            type: isStoryboard ? 'storyboard-image' : 'image-generation',
+            label: `${getModeLabel(currentMode)} ${isStoryboard ? '分镜生图' : '生图'}`,
+            detail: '准备生成请求',
+            meta: { generationId, mode: currentMode, source },
+            cancel: () => progressTracker.cancel(),
+        });
 
         try {
             const startTime = Date.now();
-            const currentMode = getCurrentMode();
             progressTracker.update(0.04, `${getModeLabel(currentMode)}：准备请求`);
+            taskStore?.update(taskId, { progress: 0.04, detail: `${getModeLabel(currentMode)}：准备请求` });
             const result = await generateByMode(currentMode, promptFromChat);
+            taskStore?.update(taskId, { progress: 0.82, detail: '生成完成，正在缓存媒体' });
 
             const { images } = result;
             const primaryImage = images[0];
@@ -271,7 +282,11 @@ export function createGenerateButtonController({
 
             const metadata = await getGenerationMetadata(currentMode, primaryImage, startTime, result.metadata);
 
-            await saveImageToCache(generationId, primaryImage.imageUrl, promptFromChat, metadata);
+            await saveImageToCache(generationId, primaryImage.imageUrl, promptFromChat, {
+                ...metadata,
+                mediaType: primaryImage.mediaType || 'image',
+                fileName: primaryImage.fileName || '',
+            });
 
             if (images.length > 1) {
                 await displayImageGrid(group, images);
@@ -301,6 +316,7 @@ export function createGenerateButtonController({
                 setAiPromptPanelBusy(aiPanel, '图片已生成', false, { includeGenerate: false });
             }
             generationResult = { status: 'success', generationId };
+            taskStore?.success(taskId, '媒体已生成并写入缓存');
             if (isStoryboard) {
                 refreshStoryboardPanelLayout(storyboardPanel);
             } else {
@@ -308,7 +324,7 @@ export function createGenerateButtonController({
             }
 
         } catch (error) {
-            if (error?.cancelled) {
+            if (error?.cancelled || progressTracker.cancelled) {
                 showToast('info', '已取消生成');
                 group.classList.remove('comfy-buttons-hidden');
                 button.disabled = false;
@@ -323,6 +339,7 @@ export function createGenerateButtonController({
                     storyboardGenerationError = '已取消';
                 }
                 generationResult = { status: 'cancelled', error: '已取消', generationId };
+                taskStore?.cancel(taskId);
                 if (!isStoryboard) setAiPromptPanelBusy(aiPanel, '', false);
             } else {
                 logger.error('生成图片失败:', error);
@@ -340,6 +357,7 @@ export function createGenerateButtonController({
                     setAiPromptPanelBusy(aiPanel, '生成失败', false);
                 }
                 generationResult = { status: 'error', error: error.message || String(error), generationId };
+                taskStore?.error(taskId, error.message || String(error));
                 setTimeout(() => {
                     button.textContent = '重新生成';
                     button.disabled = false;
@@ -416,7 +434,7 @@ export function createGenerateButtonController({
             group.classList.add('comfy-buttons-hidden');
             const imgContainer = getGeneratedImageContainer(group);
             if (imgContainer?.classList.contains('comfy-image-container')) {
-                imgContainer.querySelectorAll('img').forEach(img => {
+                imgContainer.querySelectorAll('img, video').forEach(img => {
                     if (img.dataset.dblClickBound) return;
                     img.dataset.dblClickBound = 'true';
                     img.style.cursor = 'pointer';

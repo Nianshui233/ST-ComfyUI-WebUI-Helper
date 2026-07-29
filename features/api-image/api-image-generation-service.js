@@ -11,6 +11,7 @@ import {
     buildApiImageKeyCandidates,
 } from './api-image-key-rotation.js';
 import { createApiImageTelemetry } from './api-image-telemetry.js';
+import { smartMergePrompts } from '../../lib/prompt/sd-prompt.js';
 
 const API_IMAGE_SETTINGS_TO_LOAD = [
     ['comfyui_api_image_provider', DEFAULT_SETTINGS.apiImageProvider],
@@ -41,6 +42,7 @@ export function createApiImageGenerationService({
     getStoredValues,
     getSeedForGeneration,
     progressTracker,
+    getPromptAugments,
     makeRequestWithRetry,
     showToast,
     logger = console,
@@ -60,12 +62,22 @@ export function createApiImageGenerationService({
         if (!validateSettings()) {
             throw new Error('设置校验失败，请检查输入');
         }
-        const prompt = String(promptFromChat || '').trim();
+        const profileAugments = await getPromptAugments?.() || {};
+        let prompt = smartMergePrompts(String(promptFromChat || '').trim(), profileAugments.positive);
         if (!prompt) {
             throw new Error('API 生图没有可用绘画提示词');
         }
 
-        const { settings, width, height } = await loadApiImageSettings();
+        const loaded = await loadApiImageSettings();
+        const width = loaded.width;
+        const height = loaded.height;
+        const settings = {
+            ...loaded.settings,
+            negativePrompt: smartMergePrompts(loaded.settings.negativePrompt, profileAugments.negative),
+        };
+        if (profileAugments.negative && ['openai_images', 'openai_compatible_images', 'gemini'].includes(settings.provider)) {
+            prompt = `${prompt}\nAvoid: ${profileAugments.negative}`;
+        }
         const candidates = await buildApiImageKeyCandidates({ getValue, settings });
         const totalAttempts = settings.retryOnFailure ? candidates.length : Math.min(1, candidates.length);
         let lastError = null;
@@ -110,6 +122,7 @@ export function createApiImageGenerationService({
                     data: request.data,
                     responseType: request.responseType,
                     timeout: request.timeout,
+                    signal: progressTracker.requestController?.signal,
                 }, 1);
                 if (progressTracker.cancelled) {
                     const error = new Error('生成已取消');
@@ -156,6 +169,8 @@ export function createApiImageGenerationService({
                 keyName: finalSettings.activeKeyName,
                 attempts: finalAttempt,
                 generationApi: 'api-image',
+                consistencyProfileId: profileAugments.profileId || '',
+                consistencyProfileName: profileAugments.profileName || '',
             },
         };
     }

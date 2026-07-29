@@ -70,3 +70,17 @@ test('keeps the most recent 600 entries by default', () => {
     assert.equal(entries[0].message, 'entry-1');
     assert.equal(entries.at(-1).message, 'entry-600');
 });
+
+test('plugin logger keeps routine output internal and forwards errors only', () => {
+    const forwarded = [];
+    const baseLogger = {
+        info: (...args) => forwarded.push(['info', ...args]),
+        error: (...args) => forwarded.push(['error', ...args]),
+    };
+    const store = createLogStore({ logger: baseLogger });
+    const logger = store.createLogger(baseLogger);
+    logger.info('routine');
+    logger.error('failure');
+    assert.deepEqual(forwarded, [['error', 'failure']]);
+    assert.deepEqual(store.getEntries().map(entry => entry.message), ['routine', 'failure']);
+});

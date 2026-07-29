@@ -17,6 +17,7 @@ import {
 import { createHttpClient } from '../../lib/http/http-client.js';
 import { createToastNotifier } from '../../ui/core/toast.js';
 import { createLogStore } from '../logs/log-service.js';
+import { createTaskStore } from '../tasks/task-store.js';
 
 export function createAppRuntime({
     getValue,
@@ -28,6 +29,7 @@ export function createAppRuntime({
     const imageCacheDB = new ImageCacheDB();
     const logStore = createLogStore({ logger });
     const appLogger = logStore.createLogger(logger);
+    const taskStore = createTaskStore({ logger: appLogger });
     const { getStoredValues, setStoredValues } = createStorageAccessors(getValue, setValue);
     const { makeRequest, makeRequestWithRetry } = createHttpClient({
         request,
@@ -81,5 +83,6 @@ export function createAppRuntime({
         progressTracker,
         setStoredValues,
         showToast,
+        taskStore,
     };
 }

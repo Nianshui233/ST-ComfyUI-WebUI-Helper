@@ -24,8 +24,11 @@ export function getPanelWorkflowLoraTemplate({ panelId, modes }) {
 						<button id="workflow-copy-json" class="comfy-button">复制 JSON</button>
 						<button id="workflow-minify-json" class="comfy-button">压缩 JSON</button>
 						<button id="workflow-analyze-json" class="comfy-button">分析工作流</button>
+						<button id="workflow-node-view-toggle" class="comfy-button">节点视图</button>
 					</div>
 					<div id="workflow-analysis-result" class="workflow-analysis-result" style="display: none;"></div>
+					<input id="workflow-node-search" type="search" placeholder="筛选节点 ID / 类型 / 标题" aria-label="筛选工作流节点">
+					<div id="workflow-node-view" class="workflow-node-view" hidden></div>
 				</div>
 				<div class="workflow-selector-container">
 					<div class="workflow-search-container">

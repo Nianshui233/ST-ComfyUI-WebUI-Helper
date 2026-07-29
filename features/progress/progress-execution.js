@@ -37,7 +37,7 @@ export function armImageFallback(tracker) {
     if (tracker._imageFallbackTimer) return;
     tracker._imageFallbackTimer = setTimeout(() => {
         tracker._imageFallbackTimer = null;
-        if (tracker.executedImages.length) settleExecution(tracker, { completed: true });
+        if (tracker.executedMedia?.length || tracker.executedImages.length) settleExecution(tracker, { completed: true });
     }, 3000);
 }
 
@@ -50,7 +50,11 @@ export async function waitForExecutionResult(tracker, timeoutMs) {
     try {
         const result = await Promise.race([tracker.executionPromise, timeout]);
         if (result === '__WS_TIMEOUT__' || result?.wsFailed) return null;
-        return { images: tracker.executedImages.slice(), completed: true };
+        return {
+            images: tracker.executedImages.slice(),
+            media: tracker.executedMedia?.slice() || tracker.executedImages.slice(),
+            completed: true,
+        };
     } finally {
         if (timer) clearTimeout(timer);
     }

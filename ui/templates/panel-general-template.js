@@ -27,6 +27,13 @@ export function getPanelGeneralTemplate({ panelId, modes }) {
 				</div>
 				<fieldset>
 					<legend>基础功能</legend>
+					<div class="comfy-settings-grid" style="grid-template-columns: 1fr; margin-bottom: 12px;">
+						<div><label for="comfyui-transport-mode">请求路径</label><select id="comfyui-transport-mode">
+							<option value="direct-local">本地与局域网直连（推荐）</option>
+							<option value="direct">全部直连</option>
+							<option value="proxy">全部经 SillyTavern 代理</option>
+						</select><small>直连可避免后端代理刷屏；目标服务需要允许浏览器跨域访问。</small></div>
+					</div>
 					<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-enable-comparison" type="checkbox" checked><b>图片对比</b><span>- 重新生成时显示新旧图片对比滑块</span></label></div>
 					<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-hide-buttons" type="checkbox"><b>隐藏按钮</b><span>- 生成后隐藏按钮，双击图片重新生成</span></label></div>
 					<div class="comfy-auto-generate-container"><label class="comfy-auto-generate-label"><input id="comfyui-storyboard-enabled" type="checkbox"><b>启用连环画模式</b><span>- 在消息下方显示分镜按钮，将当前剧情拆成多格提示词并逐格生图</span></label></div>

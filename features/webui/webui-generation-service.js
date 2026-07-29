@@ -24,6 +24,7 @@ export function createWebUIGenerationService({
     getWebuiImg2ImgDenoise,
     generateEmbeddingPromptString,
     progressTracker,
+    getPromptAugments,
     showToast,
     makeRequest,
     makeRequestWithRetry,
@@ -77,13 +78,16 @@ export function createWebUIGenerationService({
 
         await switchWebUIModelIfNeeded(url, selectedModel);
 
+        const profileAugments = await getPromptAugments?.() || {};
         const finalPositivePrompt = smartMergePrompts(
             webuiSettings.comfyui_positive_prompt,
             generateEmbeddingPromptString(true),
             promptFromChat,
+            profileAugments.positive,
         );
         const finalNegativePrompt = smartMergePrompts(
             webuiSettings.comfyui_negative_prompt,
+            profileAugments.negative,
             generateEmbeddingPromptString(false),
         );
 
@@ -103,7 +107,13 @@ export function createWebUIGenerationService({
             batch_size: 1,
             enable_hr: webuiSettings.webui_enable_hires,
         };
-        const webuiImg2ImgState = getImg2ImgState(MODES.WEBUI);
+        const configuredImg2imgState = getImg2ImgState(MODES.WEBUI);
+        const profileReferenceUrl = profileAugments.referenceImage?.url || '';
+        const webuiImg2ImgState = configuredImg2ImgState.enabled
+            ? configuredImg2ImgState
+            : (profileAugments.useReferenceImage && profileReferenceUrl.startsWith('data:image/')
+                ? { enabled: true, imageData: profileReferenceUrl }
+                : configuredImg2ImgState);
         if (params.enable_hr) {
             Object.assign(params, {
                 hr_upscaler: webuiSettings.webui_hires_upscaler,
@@ -130,6 +140,7 @@ export function createWebUIGenerationService({
             url: apiEndpoint,
             headers: { 'Content-Type': 'application/json' },
             data: JSON.stringify(params),
+            signal: progressTracker.requestController?.signal,
         }, 2);
         if (progressTracker.cancelled) throw makeCancelledError();
 
@@ -153,6 +164,10 @@ export function createWebUIGenerationService({
                 imageUrl: `data:image/png;base64,${img}`,
                 seed: baseSeed + index,
             })),
+            metadata: profileAugments.profileId ? {
+                consistencyProfileId: profileAugments.profileId,
+                consistencyProfileName: profileAugments.profileName,
+            } : {},
         };
     }
 

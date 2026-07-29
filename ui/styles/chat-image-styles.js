@@ -22,7 +22,8 @@ export function getChatImageStyles({ panelId, buttonId }) {
             display: none !important;
             pointer-events: none !important;
         }
-        .comfy-image-container img {
+        .comfy-image-container img,
+        .comfy-image-container video {
             display: block;
             width: 100%;
             max-width: 100%;
@@ -47,7 +48,8 @@ export function getChatImageStyles({ panelId, buttonId }) {
             border-radius: var(--vp-radius-md);
             pointer-events: none;
         }
-        .comfy-image-container-updating img {
+        .comfy-image-container-updating img,
+        .comfy-image-container-updating video {
             opacity: 0.58;
             filter: saturate(0.82);
         }
@@ -182,6 +184,7 @@ export function getChatImageStyles({ panelId, buttonId }) {
         /* ---------- Hidden-button mode ---------- */
         .comfy-buttons-hidden .comfy-chat-generate-button,
         .comfy-buttons-hidden .comfy-delete-button { display: none !important; }
-        .comfy-buttons-hidden .comfy-image-container img { cursor: pointer; }
+        .comfy-buttons-hidden .comfy-image-container img,
+        .comfy-buttons-hidden .comfy-image-container video { cursor: pointer; }
 `;
 }

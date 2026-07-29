@@ -17,6 +17,10 @@ import { getPanelInputs, getPanelButtons } from '../../ui/panel/panel-elements.j
 import { getPanelHtml } from '../../ui/panel/panel-template.js';
 import { getPanelStyles } from '../../ui/panel/panel-styles.js';
 import { DeviceDetector } from '../../ui/core/device-detector.js';
+import { createConsistencyProfileStore } from '../consistency/consistency-profile-store.js';
+import { createStudioController } from '../studio/studio-controller.js';
+import { createTaskPanelController } from '../tasks/task-panel-controller.js';
+import { createWorkflowGraphController } from '../workflow/workflow-graph-controller.js';
 
 export function createComfyWebuiHelperApp({
     addStyle,
@@ -56,7 +60,9 @@ export function createComfyWebuiHelperApp({
         progressTracker,
         setStoredValues,
         showToast,
+        taskStore,
     } = runtime;
+    const consistencyProfileStore = createConsistencyProfileStore({ getValue, setValue, getContext });
     const {
         checkSendingStatus,
         getStableMessageId,
@@ -120,6 +126,8 @@ export function createComfyWebuiHelperApp({
         getImg2ImgState,
         generateEmbeddingPromptString,
         progressTracker,
+        taskStore,
+        getPromptAugments: consistencyProfileStore.getPromptAugments,
         showToast,
         logger,
     });
@@ -141,6 +149,7 @@ export function createComfyWebuiHelperApp({
         streamingState,
         manualScan,
         helperActivation,
+        taskStore,
         saveSettings: () => {
             const panel = document.getElementById(PANEL_ID);
             if (!panel) return Promise.resolve();
@@ -157,6 +166,15 @@ export function createComfyWebuiHelperApp({
         showToast,
     });
     installGlobalErrorLogger({ logger });
+    const studioController = createStudioController({
+        profileStore: consistencyProfileStore,
+        imageCacheDB,
+        getContext,
+        showToast,
+        logger,
+    });
+    const taskPanelController = createTaskPanelController({ taskStore });
+    const workflowGraphController = createWorkflowGraphController({ showToast });
 
     panelController = createPanelController({
         getValue,
@@ -178,6 +196,9 @@ export function createComfyWebuiHelperApp({
         initSettingsBackupListeners: settingsController.initSettingsBackupListeners,
         initPresetManagers: presetController.initPresetManagers,
         initLogPanel: logPanelController.init,
+        initStudioPanel: studioController.init,
+        initTaskPanel: taskPanelController.init,
+        initWorkflowGraph: workflowGraphController.init,
         detectAiPromptModels: messageStack.detectAiPromptModels,
         populateAiPromptModelSelect: messageStack.populateAiPromptModelSelect,
         testAiPromptOpenAICompatibleApi: messageStack.testAiPromptOpenAICompatibleApi,

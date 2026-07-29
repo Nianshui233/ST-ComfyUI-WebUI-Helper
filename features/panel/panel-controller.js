@@ -37,6 +37,9 @@ export function createPanelController({
     initSettingsBackupListeners,
     initPresetManagers,
     initLogPanel,
+    initStudioPanel,
+    initTaskPanel,
+    initWorkflowGraph,
     detectAiPromptModels,
     populateAiPromptModelSelect,
     testAiPromptOpenAICompatibleApi,
@@ -234,9 +237,12 @@ export function createPanelController({
         initCacheListeners(buttons);
         initSettingsBackupListeners(buttons, inputs);
         initLogPanel?.();
+        initTaskPanel?.();
+        initWorkflowGraph?.();
 
         await loadCurrentMode();
         await loadSettings(inputs);
+        await initStudioPanel?.();
 
         panelThemeController = createPanelThemeController({
             inputs,

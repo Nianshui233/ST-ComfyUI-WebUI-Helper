@@ -382,7 +382,8 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
             background: rgba(0, 0, 0, 0.32);
             pointer-events: none;
         }
-        .comfy-storyboard-image-slot .comfy-image-container-updating img {
+        .comfy-storyboard-image-slot .comfy-image-container-updating img,
+        .comfy-storyboard-image-slot .comfy-image-container-updating video {
             opacity: 0.58;
             filter: saturate(0.82);
         }
@@ -445,7 +446,8 @@ export function getAiPromptPanelStyles({ panelId, buttonId }) {
         .comfy-storyboard-progress-slot .comfy-cancel-button {
             margin-top: 5px;
         }
-        .comfy-storyboard-image-slot .comfy-image-container img {
+        .comfy-storyboard-image-slot .comfy-image-container img,
+        .comfy-storyboard-image-slot .comfy-image-container video {
             width: auto !important;
             max-width: 100% !important;
             max-height: 280px !important;

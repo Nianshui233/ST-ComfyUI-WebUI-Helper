@@ -63,6 +63,13 @@ const SETTINGS_TO_LOAD = {
     negativePrompt: ['comfyui_negative_prompt', DEFAULT_SETTINGS.negativePrompt],
     enableComparison: ['comfyui_enable_comparison', DEFAULT_SETTINGS.enableComparison],
     hideButtons: ['comfyui_hide_buttons', DEFAULT_SETTINGS.hideButtons],
+    transportMode: ['comfyui_transport_mode', DEFAULT_SETTINGS.transportMode],
+    streamPregenEnabled: ['comfyui_stream_pregen_enabled', DEFAULT_SETTINGS.streamPregenEnabled],
+    streamPregenMinChars: ['comfyui_stream_pregen_min_chars', DEFAULT_SETTINGS.streamPregenMinChars],
+    streamPregenMaxConcurrent: ['comfyui_stream_pregen_max_concurrent', DEFAULT_SETTINGS.streamPregenMaxConcurrent],
+    streamPregenStabilityMs: ['comfyui_stream_pregen_stability_ms', DEFAULT_SETTINGS.streamPregenStabilityMs],
+    cacheMaxSizeMB: ['comfyui_cache_max_size_mb', DEFAULT_SETTINGS.cacheMaxSizeMB],
+    cacheMaxCount: ['comfyui_cache_max_count', DEFAULT_SETTINGS.cacheMaxCount],
     loraAutoAppendTriggers: ['comfyui_lora_auto_append_triggers', DEFAULT_SETTINGS.loraAutoAppendTriggers],
     loraStrictInjection: ['comfyui_lora_strict_injection', DEFAULT_SETTINGS.loraStrictInjection],
     loraSaveDebugWorkflow: ['comfyui_lora_save_debug_workflow', DEFAULT_SETTINGS.loraSaveDebugWorkflow],
@@ -217,6 +224,7 @@ export function createSettingsController({
                 }
 
                 await afterImport?.({ inputs, settings, entries: normalizedEntries });
+                document.dispatchEvent(new CustomEvent('comfyui-settings-imported'));
                 showToast('success', `插件配置已导入 (${normalizedEntries.length} 项)`);
             } catch (error) {
                 logger.error('[AI Gen] 配置导入失败:', error);

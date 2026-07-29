@@ -6,6 +6,7 @@ export function createImageCacheController({
     blobUrlTracker,
     makeRequestWithRetry,
     getCurrentMode,
+    getStoredValues,
     showToast,
     logger = console,
 }) {
@@ -13,6 +14,7 @@ export function createImageCacheController({
         imageCacheDB,
         makeRequestWithRetry,
         getCurrentMode,
+        getStoredValues,
         showToast,
         logger,
     });

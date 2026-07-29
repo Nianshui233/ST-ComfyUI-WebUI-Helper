@@ -35,14 +35,18 @@ export function createProgressTracker({
         activeClientId: null,
         lastPreviewDataUrl: null,
         executedImages: [],
+        executedMedia: [],
         executionPromise: null,
         _execResolve: null,
         _execReject: null,
         cancelled: false,
         activeUrl: null,
         activeMode: null,
+        requestController: null,
 
         createUI(anchorElement) {
+            this.requestController?.abort?.();
+            this.requestController = new AbortController();
             createProgressUI(this, anchorElement);
         },
 
@@ -94,6 +98,7 @@ export function createProgressTracker({
             this.activeUrl = url;
             this.activeMode = modes.COMFYUI;
             this.executedImages = [];
+            this.executedMedia = [];
             this._imageFallbackTimer = null;
             createExecutionPromise(this);
             try {
@@ -118,6 +123,14 @@ export function createProgressTracker({
 
                             if (msg.type === 'executed' && data.output?.images?.length) {
                                 this.executedImages.push(...data.output.images);
+                                this.executedMedia.push(...data.output.images.map(item => ({ ...item, mediaType: 'image' })));
+                                this._armImageFallback();
+                                return;
+                            }
+                            if (msg.type === 'executed' && (data.output?.gifs?.length || data.output?.videos?.length)) {
+                                const animated = [...(data.output.gifs || []), ...(data.output.videos || [])]
+                                    .map(item => ({ ...item, mediaType: /\.(mp4|webm|mov|mkv)$/i.test(item.filename || '') ? 'video' : 'image' }));
+                                this.executedMedia.push(...animated);
                                 this._armImageFallback();
                                 return;
                             }
@@ -155,6 +168,7 @@ export function createProgressTracker({
         async cancel() {
             if (this.cancelled) return;
             this.cancelled = true;
+            this.requestController?.abort?.();
             markProgressCancelling(this);
             const url = this.activeUrl;
             const mode = this.activeMode;
@@ -203,6 +217,7 @@ export function createProgressTracker({
             this._execReject = null;
             this.activePromptId = null;
             this.activeClientId = null;
+            this.requestController = null;
         },
 
         remove() {

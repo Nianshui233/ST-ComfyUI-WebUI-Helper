@@ -10,6 +10,7 @@ export function createAiPromptMessageRenderer({
     getAiPromptSettings,
     getChatMessageByNode,
     getStoredAiPrompt,
+    getAiPromptState,
     getStableMessageId,
     isAiPromptEligibleMessage,
     isMessageStreaming,
@@ -17,10 +18,19 @@ export function createAiPromptMessageRenderer({
     buildGenerateButtonGroup,
     setupGenerateButtonGroups,
     generateAiPromptForMessage,
+    consumeStreamingDraft,
     renderStoryboardForPanel,
     showToast,
     logger = console,
 }) {
+    const autoGenerationByMessage = new Map();
+
+    function getAutoGenerationKey(messageNode) {
+        const { index, message } = getChatMessageByNode(messageNode);
+        const swipeId = Number.isInteger(message?.swipe_id) ? message.swipe_id : 0;
+        return `${getStableMessageId(messageNode)}:${index}:${swipeId}`;
+    }
+
     async function renderStoryboardIfNeeded(messageNode, panel, settings) {
         renderStoryboardForPanel?.({
             messageNode,
@@ -52,7 +62,11 @@ export function createAiPromptMessageRenderer({
         const { index, message, context } = getChatMessageByNode(messageNode);
         if (!message || !context) return;
 
-        const prompt = getStoredAiPrompt(message);
+        let prompt = getStoredAiPrompt(message);
+        if (!prompt && !isMessageStreaming(messageNode)) {
+            prompt = await consumeStreamingDraft?.(messageNode) || '';
+        }
+        const promptState = getAiPromptState(message);
         const messageId = getStableMessageId(messageNode);
         const panel = existing || document.createElement('div');
         panel.className = 'comfy-ai-prompt-panel';
@@ -88,6 +102,7 @@ export function createAiPromptMessageRenderer({
                 promptHash,
                 messageId,
                 buildGenerateButtonGroup,
+                promptState,
             });
             await setupGenerateButtonGroups(panel, { allowAutoGenerate: false });
             await renderStoryboardIfNeeded(messageNode, panel, settings);
@@ -96,15 +111,20 @@ export function createAiPromptMessageRenderer({
             await renderStoryboardIfNeeded(messageNode, panel, settings);
 
             const isLatestMessage = index === context.chat.length - 1;
-            const shouldAutoGenerate = settings.auto && allowAuto && isLatestMessage && !messageNode.dataset.aiPromptAutoTriggered && !isMessageStreaming(messageNode);
+            const autoKey = getAutoGenerationKey(messageNode);
+            const shouldAutoGenerate = settings.auto && allowAuto && isLatestMessage &&
+                !messageNode.dataset.aiPromptAutoTriggered &&
+                !autoGenerationByMessage.has(autoKey) &&
+                !isMessageStreaming(messageNode);
             if (shouldAutoGenerate) {
-                triggerAutoAiPromptGeneration(messageNode, settings);
+                triggerAutoAiPromptGeneration(messageNode, settings, autoKey);
             }
         }
     }
 
-    function triggerAutoAiPromptGeneration(messageNode, settings) {
+    function triggerAutoAiPromptGeneration(messageNode, settings, autoKey = getAutoGenerationKey(messageNode)) {
         messageNode.dataset.aiPromptAutoTriggered = 'true';
+        autoGenerationByMessage.set(autoKey, true);
         setTimeout(() => {
             if (messageNode.dataset.aiPromptGenerating === 'true') return;
             messageNode.dataset.aiPromptGenerating = 'true';
@@ -159,6 +179,7 @@ export function createAiPromptMessageRenderer({
                 .finally(() => {
                     clearInterval(progressTimer);
                     delete messageNode.dataset.aiPromptGenerating;
+                    autoGenerationByMessage.delete(autoKey);
                 });
         }, 150);
     }

@@ -2,8 +2,8 @@ import {
     POLLING_TIMEOUT_MS,
 } from '../core/runtime-config.js';
 import {
-    findImageUrlInHistory,
-    pickImageUrlFromList,
+    findMediaInHistory,
+    pickMediaFromList,
     summarizeHistoryEntry,
 } from './comfyui-results.js';
 import {
@@ -83,14 +83,25 @@ export async function waitForComfyUIImage({
     makeRequest,
     logger,
 }) {
-    let imageUrl = null;
+    const media = await waitForComfyMedia({ url, promptId, progressTracker, makeRequest, logger });
+    return media?.mediaUrl || null;
+}
+
+export async function waitForComfyMedia({
+    url,
+    promptId,
+    progressTracker,
+    makeRequest,
+    logger,
+}) {
+    let media = null;
     let finalHistory = null;
     const wsResult = await progressTracker.waitForExecution(POLLING_TIMEOUT_MS);
-    if (wsResult?.images?.length) {
-        imageUrl = pickImageUrlFromList(wsResult.images, url);
+    if (wsResult?.media?.length || wsResult?.images?.length) {
+        media = pickMediaFromList(wsResult.media || wsResult.images, url);
     }
 
-    if (!imageUrl) {
+    if (!media) {
         finalHistory = await pollForResult({
             url,
             promptId,
@@ -98,22 +109,23 @@ export async function waitForComfyUIImage({
             makeRequest,
             logger,
         });
-        imageUrl = findImageUrlInHistory(finalHistory, promptId, url);
+        media = findMediaInHistory(finalHistory, promptId, url);
     }
 
-    if (!imageUrl) {
-        imageUrl = await progressTracker.waitForPreview();
-        if (imageUrl) {
+    if (!media) {
+        const previewUrl = await progressTracker.waitForPreview();
+        if (previewUrl) {
+            media = { mediaUrl: previewUrl, mediaType: 'image', fileName: 'preview.png' };
             logger.warn('[AI Gen] /history 未返回图片，已回退到 WebSocket 预览图:', summarizeHistoryEntry(finalHistory, promptId));
         }
     }
 
-    if (!imageUrl) {
+    if (!media) {
         logger.warn('[AI Gen] ComfyUI history 摘要:', summarizeHistoryEntry(finalHistory, promptId));
         throw new Error('ComfyUI 已完成，但未返回可显示图片；/history 与预览流都没有拿到结果');
     }
 
-    return imageUrl;
+    return media;
 }
 
 function pollForResult({
@@ -154,8 +166,8 @@ function pollForResult({
                 if (history[promptId]) {
                     historySeenAt = historySeenAt || Date.now();
 
-                    const imageUrl = findImageUrlInHistory(history, promptId, url, { silent: true });
-                    if (imageUrl) {
+                    const media = findMediaInHistory(history, promptId, url, { silent: true });
+                    if (media) {
                         logger.log(`[AI Gen] 轮询成功 (${pollCount} 次，耗时 ${((Date.now() - startTime) / 1000).toFixed(1)}s)`);
                         resolve(history);
                         return;

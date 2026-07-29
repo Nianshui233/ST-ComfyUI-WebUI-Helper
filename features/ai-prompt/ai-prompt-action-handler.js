@@ -12,6 +12,8 @@ export function createAiPromptActionHandler({
     getStoredAiPrompt,
     renderAiPromptControlsForMessage,
     saveAiPromptToMessage,
+    restoreAiPromptVersion,
+    toggleAiPromptLock,
     saveCurrentSettings,
     onStoryboardActionClick,
     showToast,
@@ -42,6 +44,22 @@ export function createAiPromptActionHandler({
 
             if (action === 'save') {
                 await handleSaveAction({ messageNode, panel });
+                return;
+            }
+
+            if (action === 'toggle-lock') {
+                const locked = await toggleAiPromptLock(messageNode);
+                await renderAiPromptControlsForMessage(messageNode, { allowAuto: false, force: true });
+                showToast('success', locked ? '绘图提示词已锁定' : '绘图提示词已解锁');
+                return;
+            }
+
+            if (action === 'restore-version') {
+                const versionId = panel.querySelector('.comfy-ai-prompt-version-select')?.value;
+                if (!versionId) return;
+                await restoreAiPromptVersion(messageNode, versionId);
+                await renderAiPromptControlsForMessage(messageNode, { allowAuto: false, force: true });
+                showToast('success', '已恢复所选提示词版本');
                 return;
             }
 
@@ -124,7 +142,7 @@ export function createAiPromptActionHandler({
             showToast('warning', '请先展开编辑并填写绘图提示词');
             return;
         }
-        await saveAiPromptToMessage(messageNode, prompt, prompt);
+        await saveAiPromptToMessage(messageNode, prompt, prompt, { force: true, source: 'manual' });
         await renderAiPromptControlsForMessage(messageNode, { allowAuto: false, force: true });
         showToast('success', '绘图提示词已保存');
     }

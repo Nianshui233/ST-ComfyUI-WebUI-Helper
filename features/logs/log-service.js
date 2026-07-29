@@ -238,13 +238,15 @@ export function createLogStore({ maxEntries = 600, logger = console } = {}) {
         }).join('\n');
     }
 
-    function createLogger(baseLogger = logger) {
+    function createLogger(baseLogger = logger, { forward = false } = {}) {
         const wrappedLogger = {};
         ['log', 'info', 'warn', 'warning', 'error', 'debug'].forEach(method => {
             wrappedLogger[method] = (...args) => {
                 const level = shouldTreatAsDebug(method, args) ? 'debug' : method;
                 add(level, args, method === 'log' ? 'console' : method);
-                callBaseLogger(baseLogger, method === 'warning' ? 'warn' : method, args);
+                if (forward || level === 'error') {
+                    callBaseLogger(baseLogger, method === 'warning' ? 'warn' : method, args);
+                }
             };
         });
         return wrappedLogger;

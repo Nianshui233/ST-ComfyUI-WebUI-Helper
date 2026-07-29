@@ -23,6 +23,7 @@ export const STORAGE_KEY_API_IMAGE_LAST_API_KEY = 'comfyui_api_image_last_api_ke
 export const STORAGE_KEY_COMFYUI_LORA_PRESETS = 'comfyui_lora_presets';
 export const STORAGE_KEY_LAST_COMFYUI_WORKFLOW = 'comfyui_last_submitted_workflow';
 export const STORAGE_KEY_LAST_LORA_REPORT = 'comfyui_last_lora_injection_report';
+export const STORAGE_KEY_TRANSPORT_MODE = 'comfyui_transport_mode';
 
 export const MODES = {
     COMFYUI: 'comfyui',
@@ -114,6 +115,13 @@ export const DEFAULT_SETTINGS = {
     img2imgDenoising: 0.75,
     enableComparison: true,
     hideButtons: false,
+    transportMode: 'direct-local',
+    streamPregenEnabled: false,
+    streamPregenMinChars: 320,
+    streamPregenMaxConcurrent: 1,
+    streamPregenStabilityMs: 1800,
+    cacheMaxSizeMB: 200,
+    cacheMaxCount: 200,
     loraAutoAppendTriggers: true,
     loraStrictInjection: true,
     loraSaveDebugWorkflow: true,

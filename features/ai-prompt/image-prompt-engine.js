@@ -192,6 +192,7 @@ export function createImagePromptEngine({
     saveAiPromptToMessage,
     saveStoryboardToMessage,
     providerAdapter,
+    taskStore,
     waitForRetry = ms => new Promise(resolve => setTimeout(resolve, ms)),
     logger = console,
 }) {
@@ -265,7 +266,7 @@ export function createImagePromptEngine({
         throw createOutputTruncatedError('LLM 输出在扩容后仍不完整');
     }
 
-    async function generateSingle(messageNode, { progress } = {}) {
+    async function generateSingleCore(messageNode, { progress, save = true } = {}) {
         const startedAt = Date.now();
         reportProgress(progress, 'settings', '读取 AI/LLM 设置', startedAt);
         const settings = await getAiPromptSettings();
@@ -299,9 +300,12 @@ export function createImagePromptEngine({
         }, rawText => renderImagePrompt(decodeSinglePrompt(rawText), generationProfile));
 
         reportProgress(progress, 'save', '正在写回当前聊天消息', startedAt);
-        await saveAiPromptToMessage(messageNode, prompt, result.rawText, {
-            generationProfile: generationProfile.id,
-        });
+        if (save) {
+            await saveAiPromptToMessage(messageNode, prompt, result.rawText, {
+                generationProfile: generationProfile.id,
+                source: 'generated',
+            });
+        }
         logger.info('[AI Gen] AI 绘图提示词分析完成', {
             attempts: result.attempts,
             contextMessages: messages.length,
@@ -323,7 +327,7 @@ export function createImagePromptEngine({
         return prompt;
     }
 
-    async function generateStoryboard(messageNode, { maxPanels = 4, progress } = {}) {
+    async function generateStoryboardCore(messageNode, { maxPanels = 4, progress } = {}) {
         const startedAt = Date.now();
         reportProgress(progress, 'settings', '读取 AI/LLM 设置', startedAt);
         const settings = await getAiPromptSettings();
@@ -417,6 +421,57 @@ export function createImagePromptEngine({
             phase: 'done',
         });
         return storyboard;
+    }
+
+    async function withTask(type, label, options, operation) {
+        if (options.trackTask === false || !taskStore) return operation(options.progress);
+        let taskId;
+        let cancelled = false;
+        taskId = taskStore.start({
+            type,
+            label,
+            detail: '准备上下文',
+            cancel: () => { cancelled = true; },
+        });
+        const progress = payload => {
+            if (cancelled) {
+                const error = new Error('任务已取消');
+                error.cancelled = true;
+                throw error;
+            }
+            const phaseProgress = { settings: 0.08, context: 0.2, request: 0.45, parse: 0.75, save: 0.9, done: 1 };
+            taskStore.update(taskId, {
+                detail: payload.detail,
+                progress: phaseProgress[payload.phase] ?? 0.4,
+            });
+            options.progress?.(payload);
+        };
+        try {
+            const result = await operation(progress);
+            if (cancelled) {
+                const error = new Error('任务已取消');
+                error.cancelled = true;
+                throw error;
+            }
+            taskStore.success(taskId, '已写回聊天消息');
+            return result;
+        } catch (error) {
+            if (cancelled || error?.cancelled) taskStore.cancel(taskId);
+            else taskStore.error(taskId, error.message || String(error));
+            throw error;
+        }
+    }
+
+    function generateSingle(messageNode, options = {}) {
+        return withTask('ai-prompt', 'AI 提示词分析', options, progress => (
+            generateSingleCore(messageNode, { ...options, progress })
+        ));
+    }
+
+    function generateStoryboard(messageNode, options = {}) {
+        return withTask('storyboard-analysis', '连环画分镜分析', options, progress => (
+            generateStoryboardCore(messageNode, { ...options, progress })
+        ));
     }
 
     return {

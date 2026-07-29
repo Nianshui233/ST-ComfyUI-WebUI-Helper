@@ -27,6 +27,8 @@ export function createGenerationStack({
     getImg2ImgState,
     generateEmbeddingPromptString,
     progressTracker,
+    taskStore,
+    getPromptAugments,
     showToast,
     logger = console,
 }) {
@@ -53,6 +55,7 @@ export function createGenerationStack({
         ),
         generateEmbeddingPromptString,
         progressTracker,
+        getPromptAugments,
         setValue,
         showToast,
         makeRequest,
@@ -88,6 +91,7 @@ export function createGenerationStack({
         blobUrlTracker,
         makeRequestWithRetry,
         getCurrentMode,
+        getStoredValues,
         showToast,
         logger,
     });
@@ -118,6 +122,7 @@ export function createGenerationStack({
         displayImageGrid,
         comparisonMode,
         progressTracker,
+        taskStore,
         setAiPromptPanelBusy: (...args) => getAiPromptController()?.setAiPromptPanelBusy?.(...args),
         showToast,
         logger,

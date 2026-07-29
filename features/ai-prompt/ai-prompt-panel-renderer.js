@@ -100,10 +100,16 @@ export function renderAiPromptReadyPanel({
     promptHash,
     messageId,
     buildGenerateButtonGroup,
+    promptState = {},
 }) {
     panel.dataset.promptHash = promptHash;
     const isEditorOpen = panel.dataset.editorOpen === 'true';
     const summary = createPromptSummary(prompt);
+    const versions = Array.isArray(promptState.versions) ? promptState.versions : [];
+    const historyOptions = versions.slice().reverse().map((version, index) => {
+        const date = version.createdAt ? new Date(version.createdAt).toLocaleString() : `版本 ${versions.length - index}`;
+        return `<option value="${escapeHTML(version.id)}">${escapeHTML(date)} · ${escapeHTML(version.source || 'manual')}</option>`;
+    }).join('');
     panel.innerHTML = `
         <div class="comfy-ai-prompt-header">
             <span>AI 绘图</span>
@@ -121,6 +127,8 @@ export function renderAiPromptReadyPanel({
                 <textarea class="comfy-ai-prompt-textarea" spellcheck="false">${escapeHTML(prompt)}</textarea>
             </div>
             <div class="comfy-ai-prompt-tools">
+                <button type="button" class="comfy-button comfy-ai-prompt-action ${promptState.locked ? 'success' : ''}" data-action="toggle-lock"><i class="fa-solid fa-${promptState.locked ? 'lock' : 'lock-open'}"></i> ${promptState.locked ? '已锁定' : '锁定'}</button>
+                ${versions.length ? `<select class="comfy-ai-prompt-version-select" aria-label="提示词历史版本">${historyOptions}</select><button type="button" class="comfy-button comfy-ai-prompt-action" data-action="restore-version">恢复版本</button>` : ''}
                 <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="quick">重写并生成</button>
                 <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="rewrite">重写提示词</button>
                 <button type="button" class="comfy-button comfy-ai-prompt-action" data-action="save">保存编辑</button>

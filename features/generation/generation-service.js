@@ -19,7 +19,7 @@ import {
     replacePlaceholdersInWorkflow,
     submitComfyUIPrompt,
     uploadImageToComfyUI,
-    waitForComfyUIImage,
+    waitForComfyMedia,
 } from '../comfyui/comfyui-generation-helpers.js';
 import {
     createClientId,
@@ -44,6 +44,7 @@ export function createGenerationService({
     getWebuiImg2ImgDenoise,
     generateEmbeddingPromptString,
     progressTracker,
+    getPromptAugments,
     setValue,
     showToast,
     makeRequest,
@@ -59,6 +60,7 @@ export function createGenerationService({
         getWebuiImg2ImgDenoise,
         generateEmbeddingPromptString,
         progressTracker,
+        getPromptAugments,
         showToast,
         makeRequest,
         makeRequestWithRetry,
@@ -70,6 +72,7 @@ export function createGenerationService({
         getStoredValues,
         getSeedForGeneration,
         progressTracker,
+        getPromptAugments,
         makeRequestWithRetry,
         showToast,
         logger,
@@ -119,12 +122,17 @@ export function createGenerationService({
             ? getComfyUILoraTriggerPrompt(enabledLoras)
             : '';
 
+        const profileAugments = await getPromptAugments?.() || {};
         const finalPositivePrompt = smartMergePrompts(
             comfySettings.comfyui_positive_prompt,
             loraTriggerPrompt,
             promptFromChat,
+            profileAugments.positive,
         );
-        const finalNegativePrompt = smartMergePrompts(comfySettings.comfyui_negative_prompt);
+        const finalNegativePrompt = smartMergePrompts(
+            comfySettings.comfyui_negative_prompt,
+            profileAugments.negative,
+        );
 
         if (loraTriggerPrompt) {
             logger.log('[AI Gen] 已追加 LoRA 触发词:', loraTriggerPrompt);
@@ -145,13 +153,22 @@ export function createGenerationService({
             height: comfySettings.comfyui_gen_height,
             denoise: getComfyImg2ImgDenoise(),
         };
-        const img2imgState = getImg2ImgState(MODES.COMFYUI);
+        const configuredImg2imgState = getImg2ImgState(MODES.COMFYUI);
+        const profileReferenceUrl = profileAugments.referenceImage?.url || '';
+        const img2imgState = configuredImg2imgState.enabled
+            ? configuredImg2imgState
+            : (profileAugments.useReferenceImage && profileReferenceUrl.startsWith('data:image/')
+                ? { enabled: true, imageData: profileReferenceUrl, fileName: profileAugments.referenceImage.name || 'profile-reference.png' }
+                : configuredImg2imgState);
         if (!params.model) throw new Error('ComfyUI Checkpoint 模型未选择');
         if (img2imgState.enabled && !img2imgState.imageData) {
             throw new Error('已启用 ComfyUI 图生图，但还没有上传参考图片');
         }
 
         if (img2imgState.enabled && img2imgState.imageData) {
+            if (!workflowString.includes('%init_image%')) {
+                throw new Error('已启用图生图参考图，但当前工作流没有 %init_image% 占位符');
+            }
             const uploadResult = await uploadImageToComfyUI(url, img2imgState.imageData, img2imgState.fileName, makeRequest);
             params.init_image = uploadResult.name;
         }
@@ -207,17 +224,28 @@ export function createGenerationService({
             });
             progressTracker.activePromptId = promptId;
 
-            const imageUrl = await waitForComfyUIImage({
+            const media = await waitForComfyMedia({
                 url,
                 promptId,
                 progressTracker,
                 makeRequest,
                 logger,
             });
-            results.push({ imageUrl, seed: batchParams.seed });
+            results.push({
+                imageUrl: media.mediaUrl,
+                mediaType: media.mediaType,
+                fileName: media.fileName,
+                seed: batchParams.seed,
+            });
         }
 
-        return { images: results };
+        return {
+            images: results,
+            metadata: profileAugments.profileId ? {
+                consistencyProfileId: profileAugments.profileId,
+                consistencyProfileName: profileAugments.profileName,
+            } : {},
+        };
     }
 
     async function generateWithWebUI(promptFromChat) {

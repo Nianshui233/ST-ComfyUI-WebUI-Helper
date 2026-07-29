@@ -9,6 +9,7 @@ export function createMessageActionController({
     buildGenerateButtonGroup,
     setupGenerateButtonGroups,
     renderAiPromptControlsForMessage,
+    scheduleStreamingPregeneration,
     isHelperEnabled,
     logger = console,
 }) {
@@ -122,6 +123,9 @@ export function createMessageActionController({
         if (detectedTags.length === 0) {
             if (streamingState.activeMessages.has(messageId)) {
                 markMessageAsStreamComplete(messageNode);
+            }
+            if (!forceReplace && isMessageStreaming(messageNode)) {
+                scheduleStreamingPregeneration?.(messageNode);
             }
             if (messageNode.dataset.aiPromptGenerating === 'true') return;
             await renderAiPromptControlsForMessage(messageNode, { allowAuto: forceReplace || !isMessageStreaming(messageNode) });
